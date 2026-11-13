@@ -34,7 +34,8 @@
     },
     "lodging": {
       "area": "北部（濟州市，待確認）"
-    }
+    },
+    "drive_note": "車程是用直線距離估算（×1.35、時速 42 公里、加 5 分鐘停車），實際以 Kakao 導航為準"
   },
   "days": [
     {
@@ -79,13 +80,15 @@
           "lat": null,
           "lng": null,
           "category": "transport",
-          "duration_min": 75,
+          "duration_min": 0,
           "tips": [
-            "走 5·16 道路或平和路，約 1 小時 10 分"
-          ]
+            "走 5·16 道路（1131）翻過漢拏山"
+          ],
+          "from_city": true,
+          "drive_min": null
         },
         {
-          "time": "09:30",
+          "time": "09:20",
           "name": "柑橘博物館（摘橘）",
           "name_ko": "감귤박물관",
           "lat": 33.2715236,
@@ -93,10 +96,11 @@
           "category": "experience",
           "duration_min": 75,
           "tips": [
-            "公營果園摘橘，約 1kg",
-            "雨天不開放",
+            "公營果園摘橘，約 1kg（去年 5,000 韓元）",
+            "下雨不開放摘橘，展館照開",
             "11 月中後橘子轉全橘色"
-          ]
+          ],
+          "drive_min": 55
         },
         {
           "time": "11:00",
@@ -107,64 +111,101 @@
           "category": "walk",
           "duration_min": 90,
           "tips": [
-            "市場小吃當早午餐",
-            "海邊有湧泉"
-          ]
+            "海邊有湧泉，在地人散步的地方",
+            "市場吃點小吃就好，午餐留到大坪里",
+            "市場有頂棚，下雨也能逛"
+          ],
+          "drive_min": 15
         },
         {
-          "time": "13:00",
+          "time": "13:10",
+          "name": "午餐：大坪里",
+          "name_ko": "대평리",
+          "lat": 33.2397,
+          "lng": 126.3609,
+          "category": "food",
+          "duration_min": 60,
+          "tips": [],
+          "approx": true,
+          "options": [
+            {
+              "name": "용왕난드르 향토음식점（鄉土料理）",
+              "name_ko": "용왕난드르 향토음식점",
+              "q": "용왕난드르 향토음식점 대평",
+              "hours": "營業時間未公開，出發前用 Naver 確認",
+              "closed": [],
+              "note": "招牌是海螺(보말)麵疙瘩、烤鯖魚，就在大坪村口",
+              "verified": false
+            },
+            {
+              "name": "춘미향식당（切片豬肉定食）",
+              "name_ko": "춘미향식당",
+              "q": "춘미향식당 안덕",
+              "hours": "營業時間未公開，出發前確認",
+              "closed": [],
+              "note": "在地小店，돔베고기定食、老闆自己釣的魚",
+              "verified": false
+            }
+          ],
+          "drive_min": 40
+        },
+        {
+          "time": "14:15",
           "name": "大坪浦口／朴水崖",
           "name_ko": "대평포구 / 박수기정",
           "lat": 33.2365477,
           "lng": 126.3566699,
           "category": "nature",
-          "duration_min": 90,
+          "duration_min": 55,
           "tips": [
-            "大坪里村子吃午餐",
             "偶來 9 號起點，走「몰질」古馬道上崖頂約 30 分"
-          ]
+          ],
+          "drive_min": 5
         },
         {
-          "time": "14:45",
+          "time": "15:20",
           "name": "安德溪谷",
           "name_ko": "안덕계곡",
           "lat": 33.2573447,
           "lng": 126.3528872,
           "category": "nature",
-          "duration_min": 30,
+          "duration_min": 25,
           "tips": [
             "短步道"
-          ]
+          ],
+          "drive_min": 10
         },
         {
-          "time": "15:30",
+          "time": "16:10",
           "name": "Alddreu 機場遺址＋섯알오름",
           "name_ko": "알뜨르비행장 / 섯알오름",
           "lat": 33.2046995,
           "lng": 126.276827,
           "category": "history",
-          "duration_min": 60,
+          "duration_min": 45,
           "tips": [
             "日軍機庫散在田間",
             "4·3 遺址，請保持安靜",
-            "停섯알오름學살터停車場"
-          ]
+            "停섯알오름學殺터停車場"
+          ],
+          "drive_min": 25
         },
         {
-          "time": "16:50",
+          "time": "17:05",
           "name": "沙溪海岸看兄弟島夕陽",
           "name_ko": "사계해안 / 형제섬",
           "lat": 33.2099736,
           "lng": 126.3143349,
           "category": "sunset",
-          "duration_min": 45,
+          "duration_min": 35,
           "tips": [
-            "日落約 17:20"
-          ]
+            "風很大，帽子拿好"
+          ],
+          "drive_min": 10
         },
         {
-          "time": "18:00",
-          "name": "摹瑟浦港 大方魚晚餐",
+          "time": "17:55",
+          "name": "晚餐：摹瑟浦港大方魚",
           "name_ko": "모슬포항",
           "lat": 33.2161533,
           "lng": 126.2505362,
@@ -173,20 +214,52 @@
           "tips": [
             "11 月起大方魚當季",
             "方魚節 11/19–22 已結束，港邊人少"
-          ]
+          ],
+          "options": [
+            {
+              "name": "항구식당",
+              "name_ko": "항구식당",
+              "q": "항구식당 모슬포 하모항구로 64",
+              "hours": "約 10:00–21:50（15:00–16:00 休息）",
+              "closed": [],
+              "note": "老港口食堂，方魚生魚片附烤鯖魚和湯；時間是幾年前的資料，出發前再確認",
+              "verified": false
+            },
+            {
+              "name": "수눌음",
+              "name_ko": "수눌음",
+              "q": "수눌음 모슬포 하모항구로 50",
+              "hours": "營業時間出發前確認",
+              "closed": [],
+              "note": "大方魚＋鯖魚生魚片套餐，在地人每年都會去",
+              "verified": false
+            },
+            {
+              "name": "신영수산（外帶）",
+              "name_ko": "신영수산",
+              "q": "신영수산 모슬포",
+              "hours": "營業時間出發前確認",
+              "closed": [],
+              "note": "只能外帶，便宜量多；可以帶回住處吃",
+              "verified": false
+            }
+          ],
+          "drive_min": 15
         },
         {
-          "time": "19:30",
+          "time": "19:25",
           "name": "開回濟州市住宿",
           "name_ko": "제주시",
           "lat": null,
           "lng": null,
           "category": "transport",
-          "duration_min": 60,
+          "duration_min": 0,
           "tips": [
-            "走平和路（1135）約 1 小時",
+            "走平和路（1135）約 1 小時，到住處約 20:30",
             "晚上中山間路段起霧要慢開"
-          ]
+          ],
+          "to_city": true,
+          "drive_min": null
         }
       ],
       "stay": "北部（濟州市）",
@@ -196,6 +269,164 @@
       "weather_point": {
         "lat": 33.25,
         "lng": 126.4
+      },
+      "rain_plan": {
+        "note": "南部全在戶外：下雨改走美術館路線，晚餐照樣吃大方魚",
+        "stops": [
+          {
+            "time": "08:15",
+            "name": "從濟州市出發",
+            "name_ko": "제주시",
+            "lat": null,
+            "lng": null,
+            "category": "transport",
+            "duration_min": 0,
+            "tips": [],
+            "from_city": true,
+            "drive_min": null
+          },
+          {
+            "time": "09:20",
+            "name": "柑橘博物館（只看展館）",
+            "name_ko": "감귤박물관",
+            "lat": 33.2715236,
+            "lng": 126.6076604,
+            "category": "experience",
+            "duration_min": 60,
+            "tips": [
+              "下雨不開摘橘，展館和溫室照開",
+              "出口有時會送一袋在地橘子"
+            ],
+            "drive_min": 55
+          },
+          {
+            "time": "10:40",
+            "name": "왈종美術館",
+            "name_ko": "왈종미술관",
+            "lat": 33.247,
+            "lng": 126.5717,
+            "category": "history",
+            "duration_min": 60,
+            "tips": [
+              "李왈종畫家的美術館，白瓷杯造型建築",
+              "10:00–18:00，週一休",
+              "成人 10,000 韓元"
+            ],
+            "approx": true,
+            "drive_min": 15
+          },
+          {
+            "time": "11:50",
+            "name": "午餐：每日偶來市場（有頂棚）",
+            "name_ko": "서귀포매일올레시장",
+            "lat": 33.2494,
+            "lng": 126.5636,
+            "category": "food",
+            "duration_min": 60,
+            "tips": [
+              "옛날순대 週六開到 14:30"
+            ],
+            "approx": true,
+            "drive_min": 5
+          },
+          {
+            "time": "13:40",
+            "name": "本態博物館（安藤忠雄）",
+            "name_ko": "본태박물관",
+            "lat": 33.3036,
+            "lng": 126.3906,
+            "category": "history",
+            "duration_min": 90,
+            "tips": [
+              "清水模建築，傳統工藝＋現代藝術",
+              "全年無休，時間出發前確認"
+            ],
+            "approx": true,
+            "drive_min": 40
+          },
+          {
+            "time": "15:40",
+            "name": "濟州秋史館（承孝相）",
+            "name_ko": "제주추사관",
+            "lat": 33.2426,
+            "lng": 126.2756,
+            "category": "history",
+            "duration_min": 50,
+            "tips": [
+              "09:00–18:00（17:30 停止入場），免費",
+              "週一休"
+            ],
+            "approx": true,
+            "drive_min": 30
+          },
+          {
+            "time": "16:50",
+            "name": "摹瑟浦港看海、喝咖啡等晚餐",
+            "name_ko": "모슬포항",
+            "lat": 33.2161533,
+            "lng": 126.2505362,
+            "category": "walk",
+            "duration_min": 60,
+            "tips": [],
+            "drive_min": 10
+          },
+          {
+            "time": "17:55",
+            "name": "晚餐：摹瑟浦港大方魚",
+            "name_ko": "모슬포항",
+            "lat": 33.2161533,
+            "lng": 126.2505362,
+            "category": "food",
+            "duration_min": 90,
+            "tips": [
+              "同晴天行程的餐廳"
+            ],
+            "options": [
+              {
+                "name": "항구식당",
+                "name_ko": "항구식당",
+                "q": "항구식당 모슬포 하모항구로 64",
+                "hours": "約 10:00–21:50（15:00–16:00 休息）",
+                "closed": [],
+                "note": "老港口食堂，方魚生魚片附烤鯖魚和湯；時間是幾年前的資料，出發前再確認",
+                "verified": false
+              },
+              {
+                "name": "수눌음",
+                "name_ko": "수눌음",
+                "q": "수눌음 모슬포 하모항구로 50",
+                "hours": "營業時間出發前確認",
+                "closed": [],
+                "note": "大方魚＋鯖魚生魚片套餐，在地人每年都會去",
+                "verified": false
+              },
+              {
+                "name": "신영수산（外帶）",
+                "name_ko": "신영수산",
+                "q": "신영수산 모슬포",
+                "hours": "營業時間出發前確認",
+                "closed": [],
+                "note": "只能外帶，便宜量多；可以帶回住處吃",
+                "verified": false
+              }
+            ],
+            "drive_min": 5
+          },
+          {
+            "time": "19:25",
+            "name": "開回濟州市住宿",
+            "name_ko": "제주시",
+            "lat": null,
+            "lng": null,
+            "category": "transport",
+            "duration_min": 0,
+            "tips": [
+              "約 1 小時"
+            ],
+            "to_city": true,
+            "drive_min": null
+          }
+        ]
       }
     },
     {
@@ -212,14 +443,16 @@
           "lat": null,
           "lng": null,
           "category": "transport",
-          "duration_min": 60,
+          "duration_min": 0,
           "tips": [
             "行李放車上",
-            "走平和路到高山約 1 小時"
-          ]
+            "走平和路到高山"
+          ],
+          "from_city": true,
+          "drive_min": null
         },
         {
-          "time": "09:00",
+          "time": "09:10",
           "name": "水月峰＋엉알 地質步道",
           "name_ko": "수월봉",
           "lat": 33.2944141,
@@ -229,10 +462,11 @@
           "tips": [
             "火山灰層斷崖",
             "看遮歸島"
-          ]
+          ],
+          "drive_min": 60
         },
         {
-          "time": "10:30",
+          "time": "10:40",
           "name": "新昌風車海岸路",
           "name_ko": "신창풍차해안도로",
           "lat": 33.3433637,
@@ -241,82 +475,194 @@
           "duration_min": 30,
           "tips": [
             "風很大，帽子拿好"
-          ]
+          ],
+          "drive_min": 15
         },
         {
-          "time": "11:15",
+          "time": "11:30",
           "name": "楮旨岳",
           "name_ko": "저지오름",
           "lat": 33.3333342,
           "lng": 126.2506728,
           "category": "nature",
-          "duration_min": 75,
+          "duration_min": 60,
           "tips": [
             "環繞步道平緩",
             "火口階梯很陡，可略過"
-          ]
+          ],
+          "drive_min": 20
         },
         {
-          "time": "12:45",
-          "name": "翰林午餐",
+          "time": "12:50",
+          "name": "午餐：翰林",
           "name_ko": "한림",
-          "lat": null,
-          "lng": null,
+          "lat": 33.3985,
+          "lng": 126.249,
           "category": "food",
-          "duration_min": 45,
-          "tips": [
-            "翰林港一帶在地店"
-          ]
+          "duration_min": 60,
+          "tips": [],
+          "approx": true,
+          "options": [
+            {
+              "name": "한림칼국수（海螺刀削麵）",
+              "name_ko": "한림칼국수",
+              "q": "한림칼국수 제주본점",
+              "hours": "週日 08:00–15:30（15:00 最後點餐），週三休",
+              "closed": [
+                3
+              ],
+              "note": "常要排隊，到了先抽號碼牌",
+              "verified": true
+            },
+            {
+              "name": "재암식당（海鮮砂鍋）",
+              "name_ko": "재암식당",
+              "q": "재암식당 한림로 346",
+              "hours": "營業時間出發前確認",
+              "closed": [],
+              "note": "挾才的社區食堂，砂鍋、烤方頭魚",
+              "verified": false
+            },
+            {
+              "name": "대금식당（燉白帶魚）",
+              "name_ko": "대금식당",
+              "q": "대금식당 옹포",
+              "hours": "營業時間出發前確認",
+              "closed": [],
+              "note": "燉白帶魚很有名，但排隊 1–2 小時，趕時間就別去",
+              "verified": false
+            }
+          ],
+          "drive_min": 20
         },
         {
-          "time": "13:30",
+          "time": "14:00",
           "name": "金陵海水浴場",
           "name_ko": "금능해수욕장",
           "lat": 33.3898565,
           "lng": 126.235364,
           "category": "beach",
-          "duration_min": 60,
+          "duration_min": 40,
           "tips": [
             "比挾才安靜",
             "看飛揚島"
-          ]
+          ],
+          "drive_min": 10
         },
         {
-          "time": "15:00",
-          "name": "涯月：下貴–涯月海岸路／晚餐",
-          "name_ko": "하귀애월해안도로",
-          "lat": null,
-          "lng": null,
-          "category": "food",
-          "duration_min": 100,
+          "time": "15:05",
+          "name": "涯月海岸路兜風",
+          "name_ko": "애월해안도로",
+          "lat": 33.4636,
+          "lng": 126.3093,
+          "category": "drive",
+          "duration_min": 30,
           "tips": [
-            "早點吃晚餐，之後直接去機場"
-          ]
+            "沿 1132 往東開，邊開邊停"
+          ],
+          "approx": true,
+          "drive_min": 25
         },
         {
-          "time": "16:45",
+          "time": "15:55",
+          "name": "早晚餐：下貴",
+          "name_ko": "하귀",
+          "lat": 33.483,
+          "lng": 126.402,
+          "category": "food",
+          "duration_min": 50,
+          "tips": [
+            "很多店 15–17 點休息，出發前確認"
+          ],
+          "approx": true,
+          "options": [
+            {
+              "name": "제주 할망밥상 애월점（烤魚套餐）",
+              "name_ko": "제주 할망밥상 애월점",
+              "q": "제주 할망밥상 하귀9길 8",
+              "hours": "營業時間出發前確認",
+              "closed": [],
+              "note": "8 種烤魚＋炒豬肉的套餐",
+              "verified": false
+            },
+            {
+              "name": "동경밥상 제주점（鰻魚飯）",
+              "name_ko": "동경밥상 제주점",
+              "q": "동경밥상 제주점 하귀",
+              "hours": "營業時間出發前確認",
+              "closed": [],
+              "note": "海景鰻魚飯，排隊久",
+              "verified": false
+            },
+            {
+              "name": "改在機場吃",
+              "name_ko": "제주국제공항",
+              "q": "제주국제공항",
+              "hours": "—",
+              "closed": [],
+              "note": "如果店家下午休息，就直接去機場 3 樓吃",
+              "verified": true
+            }
+          ],
+          "drive_min": 20
+        },
+        {
+          "time": "16:50",
+          "name": "加油（還車前要加滿）",
+          "name_ko": "주유소",
+          "lat": 33.48,
+          "lng": 126.39,
+          "category": "transport",
+          "duration_min": 10,
+          "tips": [
+            "沒加滿會被收補油費",
+            "先在下貴這裡加，之後不用再繞"
+          ],
+          "approx": true,
+          "search_q": "하귀 주유소",
+          "drive_min": 5
+        },
+        {
+          "time": "17:10",
           "name": "舊嚴里石鹽田 看夕陽",
           "name_ko": "구엄리 돌염전",
           "lat": 33.4835042,
           "lng": 126.3764434,
           "category": "sunset",
-          "duration_min": 40,
-          "tips": [
-            "日落約 17:20",
-            "離機場約 25 分"
-          ]
+          "duration_min": 30,
+          "tips": [],
+          "drive_min": 10
         },
         {
-          "time": "17:40",
-          "name": "還車 → 濟州機場",
+          "time": "18:05",
+          "name": "還車 → 接駁車到機場",
+          "name_ko": "제주공항 렌터카",
+          "lat": 33.498,
+          "lng": 126.488,
+          "category": "transport",
+          "duration_min": 30,
+          "tips": [
+            "依租車公司營業所，接駁約 10–15 分",
+            "日落後就出發，別拖"
+          ],
+          "approx": true,
+          "search_q": "제주공항 렌터카하우스",
+          "drive_min": 20
+        },
+        {
+          "time": "18:35",
+          "name": "濟州機場（國際線）",
           "name_ko": "제주국제공항",
           "lat": 33.5070772,
           "lng": 126.4934311,
           "category": "transport",
-          "duration_min": 40,
+          "duration_min": 0,
           "tips": [
-            "國際線 18:20 前到"
-          ]
+            "IT633 20:20 起飛，國際線通常起飛前 1 小時關櫃",
+            "比建議的 2 小時前晚一點：想保險就把舊嚴里夕陽拿掉"
+          ],
+          "warn": "tight",
+          "drive_min": 0
         }
       ],
       "title": "西部",
@@ -325,6 +671,182 @@
       "weather_point": {
         "lat": 33.38,
         "lng": 126.25
+      },
+      "rain_plan": {
+        "note": "西部改看楮旨藝術村的美術館，最後在東門市場買伴手禮",
+        "stops": [
+          {
+            "time": "08:00",
+            "name": "退房，從濟州市出發",
+            "name_ko": "제주시",
+            "lat": null,
+            "lng": null,
+            "category": "transport",
+            "duration_min": 0,
+            "tips": [],
+            "from_city": true,
+            "drive_min": null
+          },
+          {
+            "time": "09:10",
+            "name": "濟州現代美術館（楮旨文化藝術村）",
+            "name_ko": "제주현대미술관",
+            "lat": 33.3326,
+            "lng": 126.2659,
+            "category": "history",
+            "duration_min": 75,
+            "tips": [
+              "週一休",
+              "藝術村裡散步也很舒服"
+            ],
+            "approx": true,
+            "drive_min": 45
+          },
+          {
+            "time": "10:35",
+            "name": "金昌烈美術館（水滴畫家）",
+            "name_ko": "김창열미술관",
+            "lat": 33.3376,
+            "lng": 126.2667,
+            "category": "history",
+            "duration_min": 60,
+            "tips": [
+              "週二–週日 09:00–18:00，週一休",
+              "成人 2,000 韓元"
+            ],
+            "approx": true,
+            "drive_min": 5
+          },
+          {
+            "time": "12:00",
+            "name": "午餐：翰林",
+            "name_ko": "한림",
+            "lat": 33.3985,
+            "lng": 126.249,
+            "category": "food",
+            "duration_min": 60,
+            "tips": [
+              "同晴天行程的餐廳"
+            ],
+            "approx": true,
+            "options": [
+              {
+                "name": "한림칼국수（海螺刀削麵）",
+                "name_ko": "한림칼국수",
+                "q": "한림칼국수 제주본점",
+                "hours": "週日 08:00–15:30（15:00 最後點餐），週三休",
+                "closed": [
+                  3
+                ],
+                "note": "常要排隊，到了先抽號碼牌",
+                "verified": true
+              },
+              {
+                "name": "재암식당（海鮮砂鍋）",
+                "name_ko": "재암식당",
+                "q": "재암식당 한림로 346",
+                "hours": "營業時間出發前確認",
+                "closed": [],
+                "note": "挾才的社區食堂，砂鍋、烤方頭魚",
+                "verified": false
+              },
+              {
+                "name": "대금식당（燉白帶魚）",
+                "name_ko": "대금식당",
+                "q": "대금식당 옹포",
+                "hours": "營業時間出發前確認",
+                "closed": [],
+                "note": "燉白帶魚很有名，但排隊 1–2 小時，趕時間就別去",
+                "verified": false
+              }
+            ],
+            "drive_min": 20
+          },
+          {
+            "time": "13:15",
+            "name": "翰林每日市場",
+            "name_ko": "한림매일시장",
+            "lat": 33.41,
+            "lng": 126.268,
+            "category": "walk",
+            "duration_min": 45,
+            "tips": [
+              "在地人買菜的市場，不是觀光市場",
+              "08:00–20:00（依店家）"
+            ],
+            "approx": true,
+            "drive_min": 10
+          },
+          {
+            "time": "14:30",
+            "name": "涯月海景咖啡廳躲雨",
+            "name_ko": "애월 카페",
+            "lat": 33.4636,
+            "lng": 126.3093,
+            "category": "food",
+            "duration_min": 75,
+            "tips": [
+              "挑看得到海的窗邊位子"
+            ],
+            "approx": true,
+            "drive_min": 20
+          },
+          {
+            "time": "16:15",
+            "name": "東門市場：買伴手禮＋吃晚餐",
+            "name_ko": "동문재래시장",
+            "lat": 33.5117,
+            "lng": 126.5272,
+            "category": "food",
+            "duration_min": 85,
+            "tips": [
+              "有頂棚，下雨不怕",
+              "橘子、餅乾伴手禮，市場小吃當晚餐",
+              "離機場 10 分鐘"
+            ],
+            "approx": true,
+            "drive_min": 30
+          },
+          {
+            "time": "17:50",
+            "name": "加油（機場附近）",
+            "name_ko": "주유소",
+            "lat": 33.495,
+            "lng": 126.495,
+            "category": "transport",
+            "duration_min": 10,
+            "tips": [
+              "還車前要加滿"
+            ],
+            "approx": true,
+            "search_q": "제주공항 근처 주유소",
+            "drive_min": 10
+          },
+          {
+            "time": "18:05",
+            "name": "還車 → 接駁車到機場",
+            "name_ko": "제주공항 렌터카",
+            "lat": 33.498,
+            "lng": 126.488,
+            "category": "transport",
+            "duration_min": 30,
+            "tips": [],
+            "approx": true,
+            "search_q": "제주공항 렌터카하우스",
+            "drive_min": 5
+          },
+          {
+            "time": "18:35",
+            "name": "濟州機場（國際線）",
+            "name_ko": "제주국제공항",
+            "lat": 33.5070772,
+            "lng": 126.4934311,
+            "category": "transport",
+            "duration_min": 0,
+            "tips": [],
+            "drive_min": 0
+          }
+        ]
       }
     }
   ]

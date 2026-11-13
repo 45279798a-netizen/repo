@@ -170,6 +170,41 @@
   .flight-card { background: #E3ECF7; }
   .flight-card h4 { color: #1F4479; }
 
+
+  /* Plan switch */
+  .plan { margin-top: 12px; background: var(--paper); border-radius: 20px; padding: 12px; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--mist); border-radius: 14px; padding: 4px; gap: 4px; }
+  .seg button { border: 0; background: transparent; border-radius: 10px; padding: 8px 6px; font-weight: 700; font-size: 14px; cursor: pointer; color: var(--stone); }
+  .seg button[aria-pressed="true"] { background: var(--paper); color: var(--basalt); box-shadow: 0 1px 3px rgba(43,48,54,.12); }
+  .seg button[data-plan="rain"][aria-pressed="true"] { color: var(--c-beach); }
+  .plan-note { margin: 8px 4px 0; font-size: 13px; color: var(--stone); }
+  .plan-alert { margin: 8px 0 0; font-size: 14px; background: #E6F1F6; color: #1F5670; border-radius: 12px; padding: 8px 12px; }
+
+  /* Drive legs */
+  .leg { display: grid; grid-template-columns: 50px 22px 1fr; column-gap: 8px; }
+  .leg .rail { position: relative; min-height: 34px; }
+  .leg .rail::before {
+    content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 5px; transform: translateX(-50%);
+    background: repeating-linear-gradient(160deg, var(--olle) 0 9px, var(--tangerine) 9px 18px); border-radius: 3px; opacity: .45;
+  }
+  .leg-body { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--stone); padding: 0 4px 12px; }
+  .leg-body svg { width: 16px; height: 16px; }
+  .leg.is-late .leg-body b { color: #B23A2B; }
+
+  /* Meal options */
+  .opt-h { margin: 12px 0 6px; font-size: 13px; font-weight: 700; color: var(--stone); }
+  .opts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .opt { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+  .opt.is-closed { opacity: .55; }
+  .opt-name { font-weight: 700; font-size: 15px; }
+  .opt-hours { font-size: 13px; color: var(--stone); margin-top: 2px; }
+  .opt-note { font-size: 13px; margin-top: 4px; }
+  .opt-act { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .opt-act .btn { min-height: 30px; padding: 4px 10px; font-size: 12px; }
+  .unv { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: #8A4A0E; background: #FFF4E8; border-radius: 999px; padding: 0 7px; }
+  .bad { color: #B23A2B; }
+  .warn { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: #8A4A0E; background: #FFF4E8; border-radius: 10px; padding: 6px 10px; }
+
   .empty { margin: 14px 0; padding: 22px 18px; background: var(--paper); border-radius: 20px; }
   .empty h3 { margin: 0 0 4px; font-size: 17px; }
   .empty p { margin: 0; color: var(--stone); font-size: 14px; }
@@ -400,19 +435,30 @@
   /* ---------- State ---------- */
   let done = ls.get("jeju-done", {});
   let trip = null, current = 0;
-  const stopKey = (day, i) => `${day.date}#${i}`;
+  let plans = ls.get("jeju-plan", {});
+  const planOf = day => (plans[day.date] === "rain" && day.rain_plan) ? "rain" : "sun";
+  const stopsOf = day => planOf(day) === "rain" ? day.rain_plan.stops : day.stops;
+  const stopKey = (day, i) => `${day.date}#${planOf(day)}#${i}`;
+  const WD = date => new Date(date + "T12:00:00+09:00").getUTCDay();
   const isPlace = s => s.category !== "transport";
 
   function nextIndex(day) {
     const now = kstNow();
     if (now.date !== day.date) return -1;
-    return day.stops.findIndex((s, i) => !done[stopKey(day, i)] && isPlace(s) && toMin(s.time) + (s.duration_min || 30) > now.min);
+    return stopsOf(day).findIndex((s, i) => !done[stopKey(day, i)] && isPlace(s) && toMin(s.time) + (s.duration_min || 30) > now.min);
   }
 
   function navLinks(s) {
     const q = encodeURIComponent(s.name_ko || s.name);
     const out = [];
-    if (s.lat != null && s.lng != null) out.push(`<a class="btn primary nav-btn" href="https://map.kakao.com/link/to/${q},${s.lat},${s.lng}" target="_blank" rel="noopener">${icon("nav")}導航</a>`);
+    if (s.search_q) {
+      const sq = encodeURIComponent(s.search_q);
+      out.push(`<a class="btn primary nav-btn" href="https://map.kakao.com/link/search/${sq}" target="_blank" rel="noopener">${icon("nav")}找地點</a>`);
+      return out.join("");
+    }
+    if (s.options) return "";
+    if (s.lat != null && s.lng != null && s.approx && s.name_ko) out.push(`<a class="btn primary nav-btn" href="https://map.kakao.com/link/search/${q}" target="_blank" rel="noopener">${icon("nav")}導航</a>`);
+    else if (s.lat != null && s.lng != null) out.push(`<a class="btn primary nav-btn" href="https://map.kakao.com/link/to/${q},${s.lat},${s.lng}" target="_blank" rel="noopener">${icon("nav")}導航</a>`);
     else if (!isPlace(s)) return "";
     else if (s.name_ko) out.push(`<a class="btn primary nav-btn" href="https://map.kakao.com/link/search/${q}" target="_blank" rel="noopener">${icon("nav")}找附近</a>`);
     if (s.name_ko) out.push(`<a class="btn nav-btn" href="https://map.naver.com/p/search/${q}" target="_blank" rel="noopener">${icon("map")}Naver</a>`);
@@ -465,8 +511,23 @@
     </section>`;
   }
 
+  function renderPlan(day, w) {
+    if (!day.rain_plan) return "";
+    const p = planOf(day);
+    const bad = w && ((w.rain ?? 0) >= 60 || (w.wind ?? 0) >= 12);
+    const alert = bad && p === "sun" ? `<p class="plan-alert">預報${(w.rain ?? 0) >= 60 ? `降雨機率 ${w.rain}%` : `風速 ${Math.round(w.wind)} m/s`}，建議切到雨天備案</p>` : "";
+    return `<section class="plan" aria-label="選擇行程">
+      <div class="seg" role="group" aria-label="晴天或雨天行程">
+        <button type="button" data-plan="sun" aria-pressed="${p === "sun"}">晴天行程</button>
+        <button type="button" data-plan="rain" aria-pressed="${p === "rain"}">雨天備案</button>
+      </div>
+      ${alert}
+      ${p === "rain" ? `<p class="plan-note">${esc(day.rain_plan.note)}</p>` : ""}
+    </section>`;
+  }
+
   function renderMap(day, nextIdx) {
-    const pinned = day.stops.map((s, i) => ({ s, i })).filter(o => o.s.lat != null);
+    const pinned = stopsOf(day).map((s, i) => ({ s, i })).filter(o => o.s.lat != null && (isPlace(o.s) || /機場（/.test(o.s.name)));
     if (!pinned.length) return "";
     const others = trip.days.filter(d => d !== day).flatMap(d => d.stops).filter(s => s.lat != null);
     const pts = pinned.map(o => px(o.s.lng, o.s.lat));
@@ -483,7 +544,7 @@
       { t: "中文", lng: 126.42, lat: 33.255, dy: -6 }
     ];
     const order = new Map(); let n = 0;
-    day.stops.forEach((s, i) => { if (isPlace(s)) order.set(i, ++n); });
+    stopsOf(day).forEach((s, i) => { if (isPlace(s)) order.set(i, ++n); });
     const route = pts.map(p => p.map(v => v.toFixed(1)).join(",")).join(" ");
     return `<div class="map">
       <svg viewBox="${vb}" role="img" aria-label="${esc(md(day.date))} 的路線圖">
@@ -526,6 +587,20 @@
     }
     const chips = move ? "" : `<span class="chip" style="background:color-mix(in srgb, ${color} 14%, white);color:${color}">${CAT[s.category] || ""}</span>`;
     const tips = (s.tips || []).filter(t => !(sunset && /日落約/.test(t)));
+    const wd = WD(day.date);
+    const opts = (s.options || []).map(o => {
+      const closed = o.closed.includes(wd);
+      const qq = encodeURIComponent(o.q || o.name_ko);
+      return `<li class="opt${closed ? " is-closed" : ""}">
+        <div class="opt-name">${esc(o.name)}</div>
+        <div class="opt-hours">${closed ? `<b class="bad">${WEEK[wd]}公休</b>　` : ""}${esc(o.hours)}${o.verified ? "" : `<span class="unv">待確認</span>`}</div>
+        ${o.note ? `<div class="opt-note">${esc(o.note)}</div>` : ""}
+        ${o.name_ko && o.name !== "改在機場吃" ? `<div class="opt-act">
+          <a class="btn primary" href="https://map.kakao.com/link/search/${qq}" target="_blank" rel="noopener">${icon("nav")}Kakao</a>
+          <a class="btn" href="https://map.naver.com/p/search/${qq}" target="_blank" rel="noopener">${icon("map")}Naver</a></div>` : ""}
+      </li>`;
+    }).join("");
+    const warn = s.warn === "tight" ? `<p class="warn">⚠ 到機場的時間偏緊</p>` : "";
     return `<li class="${cls}" id="stop-${i}">
       <div class="time">${esc(s.time)}</div>
       <div class="rail"><div class="dot">${move ? "" : num}</div></div>
@@ -539,7 +614,9 @@
           </div>
         </div>
         ${sunsetBlock}
+        ${warn}
         ${tips.length ? `<ul class="tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+        ${opts ? `<p class="opt-h">挑一家</p><ul class="opts">${opts}</ul>` : ""}
         ${move && !navLinks(s) ? "" : `<div class="actions">${navLinks(s)}
           ${move ? "" : `<button class="btn check" type="button" data-check="${i}" aria-pressed="${isDone}">${isDone ? "✓ 去過了" : "去過了"}</button>`}</div>`}
       </div></li>`;
@@ -550,23 +627,34 @@
     const main = document.getElementById("main");
     const arr = trip.trip.flights.find(f => f.date === day.date && f.to === "CJU");
     const dep = trip.trip.flights.find(f => f.date === day.date && f.from === "CJU");
-    const places = day.stops.filter(isPlace).length;
-    const stats = places ? `${places} 站・${day.stops[0].time} 出發` : "";
+    const places = stopsOf(day).filter(isPlace).length;
+    const stats = places ? `${places} 站・${stopsOf(day)[0].time} 出發` : "";
     let html = renderCover(day, stats);
-    html += `<div id="wx-slot">${renderWx(day, ls.get(`wx-${day.date}`, null)?.v || null)}</div>`;
+    const cachedWx = ls.get(`wx-${day.date}`, null)?.v || null;
+    html += `<div id="wx-slot">${renderWx(day, cachedWx)}</div>`;
+    html += `<div id="plan-slot">${renderPlan(day, cachedWx)}</div>`;
 
-    if (!day.stops.length) {
+    if (!stopsOf(day).length) {
       html += `<div class="section-h"><h3>行程</h3></div><ol class="timeline">${arr ? flightRow(arr, "arr") : ""}</ol>
         <div class="empty"><h3>這天的行程還沒放進來</h3>
         <p>朋友排好後，加進 data/itinerary.json 的 Day ${day.day}，就會出現在這裡。</p></div>`;
     } else {
       const nextIdx = nextIndex(day);
       html += renderMap(day, nextIdx);
-      const doneCount = day.stops.filter((s, i) => isPlace(s) && done[stopKey(day, i)]).length;
+      const doneCount = stopsOf(day).filter((s, i) => isPlace(s) && done[stopKey(day, i)]).length;
       html += `<div class="section-h"><h3>行程</h3><span>${doneCount ? `已去 ${doneCount} / ${places} 站` : `${places} 站`}</span></div>`;
       let n = 0;
       html += `<ol class="timeline">${arr ? flightRow(arr, "arr") : ""}`;
-      day.stops.forEach((s, i) => { html += stopRow(day, s, i, isPlace(s) ? ++n : 0, nextIdx); });
+      const list = stopsOf(day);
+      list.forEach((s, i) => {
+        const p = list[i - 1];
+        if (p && s.drive_min != null && s.drive_min > 0) {
+          const late = toMin(p.time) + (p.duration_min || 0) + s.drive_min - toMin(s.time);
+          html += `<li class="leg${late > 0 ? " is-late" : ""}"><div></div><div class="rail"></div>
+            <div class="leg-body">${icon("drive")}開車約 ${s.drive_min} 分${late > 0 ? `<b>・會晚到 ${late} 分</b>` : ""}</div></li>`;
+        }
+        html += stopRow(day, s, i, isPlace(s) ? ++n : 0, nextIdx);
+      });
       html += `${dep ? flightRow(dep, "dep") : ""}</ol>`;
     }
     main.innerHTML = html;
@@ -576,6 +664,8 @@
       if (trip.days[current] !== shown) return;
       const slot = document.getElementById("wx-slot");
       if (slot) slot.innerHTML = renderWx(day, w);
+      const ps = document.getElementById("plan-slot");
+      if (ps) ps.innerHTML = renderPlan(day, w);
     });
   }
 
@@ -603,7 +693,8 @@
     const f = t.flights.map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
     const docs = t.transport?.docs ? `<dt>租車</dt><dd>帶：${t.transport.docs.map(esc).join("、")}</dd>` : "";
     const stay = t.lodging ? `<dt>住宿</dt><dd>${esc(t.lodging.area)}</dd>` : "";
-    document.getElementById("info").innerHTML = `<h2>航班與提醒</h2><dl>${f}${docs}${stay}</dl>`;
+    const dn = t.drive_note ? `<dt>車程</dt><dd>${esc(t.drive_note)}</dd>` : "";
+    document.getElementById("info").innerHTML = `<h2>航班與提醒</h2><dl>${f}${docs}${stay}${dn}</dl>`;
   }
 
   function selectDay(i, focus) {
@@ -625,6 +716,11 @@
       const key = stopKey(trip.days[current], Number(chk.dataset.check));
       if (done[key]) delete done[key]; else done[key] = Date.now();
       ls.set("jeju-done", done); renderDay(); return;
+    }
+    const pl = e.target.closest("[data-plan]");
+    if (pl) {
+      plans[trip.days[current].date] = pl.dataset.plan; ls.set("jeju-plan", plans);
+      const y = window.scrollY; renderDay(); window.scrollTo(0, y); return;
     }
     const go = e.target.closest("[data-go]");
     if (go) jump(Number(go.dataset.go));

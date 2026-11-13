@@ -1,5 +1,5 @@
 // Offline cache so the itinerary still opens with weak signal in Jeju.
-const CACHE = "jeju-trip-v2";
+const CACHE = "jeju-trip-v3";
 const FILES = ["./", "index.html", "data/itinerary.json", "manifest.json", "icon.svg"];
 
 self.addEventListener("install", e => {
