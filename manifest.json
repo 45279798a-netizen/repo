@@ -1,0 +1,11 @@
+{
+  "name": "濟州 11/26–29",
+  "short_name": "濟州",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#E9EFEE",
+  "theme_color": "#E9EFEE",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
