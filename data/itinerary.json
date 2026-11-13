@@ -1,0 +1,303 @@
+{
+  "trip": {
+    "title": "濟州 2026/11/26–11/29",
+    "timezone": "Asia/Seoul",
+    "flights": [
+      {
+        "date": "2026-11-26",
+        "flight": "LJ942",
+        "airline": "真航空",
+        "from": "TPE T1",
+        "to": "CJU",
+        "dep": "02:45",
+        "arr": "06:05"
+      },
+      {
+        "date": "2026-11-29",
+        "flight": "IT633",
+        "airline": "臺灣虎航",
+        "from": "CJU",
+        "to": "RMQ",
+        "dep": "20:20",
+        "arr": "21:35"
+      }
+    ],
+    "transport": {
+      "type": "rental_car",
+      "pickup_return": "濟州機場租車中心（接駁車）",
+      "docs": [
+        "台灣國際駕照",
+        "台灣駕照正本",
+        "護照",
+        "主駕駛信用卡"
+      ]
+    },
+    "lodging": {
+      "area": "北部（濟州市，待確認）"
+    }
+  },
+  "days": [
+    {
+      "day": 1,
+      "date": "2026-11-26",
+      "region": "TBD",
+      "owner": "friend",
+      "stops": []
+    },
+    {
+      "day": 2,
+      "date": "2026-11-27",
+      "region": "TBD",
+      "owner": "friend",
+      "stops": []
+    },
+    {
+      "day": 3,
+      "date": "2026-11-28",
+      "weekday": "Sat",
+      "region": "南部（西歸浦 → 安德 → 大靜）",
+      "owner": "me",
+      "stops": [
+        {
+          "time": "08:15",
+          "name": "從濟州市出發",
+          "name_ko": "제주시",
+          "lat": null,
+          "lng": null,
+          "category": "transport",
+          "duration_min": 75,
+          "tips": [
+            "走 5·16 道路或平和路，約 1 小時 10 分"
+          ]
+        },
+        {
+          "time": "09:30",
+          "name": "柑橘博物館（摘橘）",
+          "name_ko": "감귤박물관",
+          "lat": 33.2715236,
+          "lng": 126.6076604,
+          "category": "experience",
+          "duration_min": 75,
+          "tips": [
+            "公營果園摘橘，約 1kg",
+            "雨天不開放",
+            "11 月中後橘子轉全橘色"
+          ]
+        },
+        {
+          "time": "11:00",
+          "name": "自求里公園＋李仲燮街＋每日偶來市場",
+          "name_ko": "자구리공원",
+          "lat": 33.2421829,
+          "lng": 126.5671908,
+          "category": "walk",
+          "duration_min": 90,
+          "tips": [
+            "市場小吃當早午餐",
+            "海邊有湧泉"
+          ]
+        },
+        {
+          "time": "13:00",
+          "name": "大坪浦口／朴水崖",
+          "name_ko": "대평포구 / 박수기정",
+          "lat": 33.2365477,
+          "lng": 126.3566699,
+          "category": "nature",
+          "duration_min": 90,
+          "tips": [
+            "大坪里村子吃午餐",
+            "偶來 9 號起點，走「몰질」古馬道上崖頂約 30 分"
+          ]
+        },
+        {
+          "time": "14:45",
+          "name": "安德溪谷",
+          "name_ko": "안덕계곡",
+          "lat": 33.2573447,
+          "lng": 126.3528872,
+          "category": "nature",
+          "duration_min": 30,
+          "tips": [
+            "短步道"
+          ]
+        },
+        {
+          "time": "15:30",
+          "name": "Alddreu 機場遺址＋섯알오름",
+          "name_ko": "알뜨르비행장 / 섯알오름",
+          "lat": 33.2046995,
+          "lng": 126.276827,
+          "category": "history",
+          "duration_min": 60,
+          "tips": [
+            "日軍機庫散在田間",
+            "4·3 遺址，請保持安靜",
+            "停섯알오름學살터停車場"
+          ]
+        },
+        {
+          "time": "16:50",
+          "name": "沙溪海岸看兄弟島夕陽",
+          "name_ko": "사계해안 / 형제섬",
+          "lat": 33.2099736,
+          "lng": 126.3143349,
+          "category": "sunset",
+          "duration_min": 45,
+          "tips": [
+            "日落約 17:20"
+          ]
+        },
+        {
+          "time": "18:00",
+          "name": "摹瑟浦港 大方魚晚餐",
+          "name_ko": "모슬포항",
+          "lat": 33.2161533,
+          "lng": 126.2505362,
+          "category": "food",
+          "duration_min": 90,
+          "tips": [
+            "11 月起大方魚當季",
+            "方魚節 11/19–22 已結束，港邊人少"
+          ]
+        },
+        {
+          "time": "19:30",
+          "name": "開回濟州市住宿",
+          "name_ko": "제주시",
+          "lat": null,
+          "lng": null,
+          "category": "transport",
+          "duration_min": 60,
+          "tips": [
+            "走平和路（1135）約 1 小時",
+            "晚上中山間路段起霧要慢開"
+          ]
+        }
+      ],
+      "stay": "北部（濟州市）"
+    },
+    {
+      "day": 4,
+      "date": "2026-11-29",
+      "weekday": "Sun",
+      "region": "西部（高山 → 翰京 → 翰林 → 涯月 → 機場）",
+      "owner": "me",
+      "stops": [
+        {
+          "time": "08:00",
+          "name": "退房，從濟州市出發",
+          "name_ko": "제주시",
+          "lat": null,
+          "lng": null,
+          "category": "transport",
+          "duration_min": 60,
+          "tips": [
+            "行李放車上",
+            "走平和路到高山約 1 小時"
+          ]
+        },
+        {
+          "time": "09:00",
+          "name": "水月峰＋엉알 地質步道",
+          "name_ko": "수월봉",
+          "lat": 33.2944141,
+          "lng": 126.1628076,
+          "category": "nature",
+          "duration_min": 75,
+          "tips": [
+            "火山灰層斷崖",
+            "看遮歸島"
+          ]
+        },
+        {
+          "time": "10:30",
+          "name": "新昌風車海岸路",
+          "name_ko": "신창풍차해안도로",
+          "lat": 33.3433637,
+          "lng": 126.173963,
+          "category": "drive",
+          "duration_min": 30,
+          "tips": [
+            "風很大，帽子拿好"
+          ]
+        },
+        {
+          "time": "11:15",
+          "name": "楮旨岳",
+          "name_ko": "저지오름",
+          "lat": 33.3333342,
+          "lng": 126.2506728,
+          "category": "nature",
+          "duration_min": 75,
+          "tips": [
+            "環繞步道平緩",
+            "火口階梯很陡，可略過"
+          ]
+        },
+        {
+          "time": "12:45",
+          "name": "翰林午餐",
+          "name_ko": "한림",
+          "lat": null,
+          "lng": null,
+          "category": "food",
+          "duration_min": 45,
+          "tips": [
+            "翰林港一帶在地店"
+          ]
+        },
+        {
+          "time": "13:30",
+          "name": "金陵海水浴場",
+          "name_ko": "금능해수욕장",
+          "lat": 33.3898565,
+          "lng": 126.235364,
+          "category": "beach",
+          "duration_min": 60,
+          "tips": [
+            "比挾才安靜",
+            "看飛揚島"
+          ]
+        },
+        {
+          "time": "15:00",
+          "name": "涯月：下貴–涯月海岸路／晚餐",
+          "name_ko": "하귀애월해안도로",
+          "lat": null,
+          "lng": null,
+          "category": "food",
+          "duration_min": 100,
+          "tips": [
+            "早點吃晚餐，之後直接去機場"
+          ]
+        },
+        {
+          "time": "16:45",
+          "name": "舊嚴里石鹽田 看夕陽",
+          "name_ko": "구엄리 돌염전",
+          "lat": 33.4835042,
+          "lng": 126.3764434,
+          "category": "sunset",
+          "duration_min": 40,
+          "tips": [
+            "日落約 17:20",
+            "離機場約 25 分"
+          ]
+        },
+        {
+          "time": "17:40",
+          "name": "還車 → 濟州機場",
+          "name_ko": "제주국제공항",
+          "lat": 33.5070772,
+          "lng": 126.4934311,
+          "category": "transport",
+          "duration_min": 40,
+          "tips": [
+            "國際線 18:20 前到"
+          ]
+        }
+      ]
+    }
+  ]
+}
