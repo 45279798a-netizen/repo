@@ -42,14 +42,28 @@
       "date": "2026-11-26",
       "region": "TBD",
       "owner": "friend",
-      "stops": []
+      "stops": [],
+      "title": "抵達日",
+      "tagline": "朋友排的行程",
+      "theme": "dawn",
+      "weather_point": {
+        "lat": 33.5,
+        "lng": 126.53
+      }
     },
     {
       "day": 2,
       "date": "2026-11-27",
       "region": "TBD",
       "owner": "friend",
-      "stops": []
+      "stops": [],
+      "title": "第二天",
+      "tagline": "朋友排的行程",
+      "theme": "oreum",
+      "weather_point": {
+        "lat": 33.4,
+        "lng": 126.55
+      }
     },
     {
       "day": 3,
@@ -175,7 +189,14 @@
           ]
         }
       ],
-      "stay": "北部（濟州市）"
+      "stay": "北部（濟州市）",
+      "title": "南部",
+      "tagline": "橘子田、懸崖和老漁港",
+      "theme": "south",
+      "weather_point": {
+        "lat": 33.25,
+        "lng": 126.4
+      }
     },
     {
       "day": 4,
@@ -297,7 +318,14 @@
             "國際線 18:20 前到"
           ]
         }
-      ]
+      ],
+      "title": "西部",
+      "tagline": "火山斷崖、風車，沿海岸回機場",
+      "theme": "west",
+      "weather_point": {
+        "lat": 33.38,
+        "lng": 126.25
+      }
     }
   ]
 }
