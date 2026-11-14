@@ -117,7 +117,23 @@ async function guard(fn) {
   try { await fn(); } catch (e) { toast(e.message || "出了點問題，再試一次"); }
 }
 
+/* Open the Naver Map app; if nothing happens, fall back to the Naver web map. */
+function openNaver(scheme, web) {
+  let left = false;
+  const mark = () => { if (document.hidden) left = true; };
+  document.addEventListener("visibilitychange", mark);
+  window.addEventListener("pagehide", mark);
+  try { location.href = scheme; } catch {}
+  setTimeout(() => {
+    document.removeEventListener("visibilitychange", mark);
+    window.removeEventListener("pagehide", mark);
+    if (!left && !document.hidden) { const w = window.open(web, "_blank", "noopener"); if (!w) location.href = web; }
+  }, 1600);
+}
+
 document.addEventListener("click", e => {
+  const nm = e.target.closest("a[data-nmap]");
+  if (nm) { e.preventDefault(); openNaver(nm.dataset.nmap, nm.href); return; }
   const el = e.target.closest("[data-act]");
   if (!el || el.tagName === "FORM") return;
   const a = el.dataset.act;

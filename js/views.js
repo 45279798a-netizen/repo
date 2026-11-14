@@ -48,18 +48,35 @@ export function tabbar(active) {
     `<a href="#${id}" class="tab${active === id ? " on" : ""}"${active === id ? ' aria-current="page"' : ""}>${icon(ic, "currentColor", 1.9)}<span>${label}</span></a>`).join("")}</nav>`;
 }
 
-function navLinks(s, compact) {
-  const q = encodeURIComponent(s.extra?.search_q || s.name_ko || s.name);
-  const out = [];
-  if (s.options?.length) return "";
-  if (s.extra?.search_q || (s.extra?.approx && s.name_ko) || (s.lat == null && s.name_ko && isPlace(s))) {
-    out.push(`<a class="btn primary" href="https://map.kakao.com/link/search/${q}" target="_blank" rel="noopener">${icon("nav")}${s.extra?.search_q ? "找地點" : "導航"}</a>`);
-  } else if (s.lat != null) {
-    out.push(`<a class="btn primary" href="https://map.kakao.com/link/to/${encodeURIComponent(s.name_ko || s.name)},${s.lat},${s.lng}" target="_blank" rel="noopener">${icon("nav")}導航</a>`);
-  }
-  if (!compact && s.name_ko && isPlace(s)) out.push(`<a class="btn" href="https://map.naver.com/p/search/${encodeURIComponent(s.name_ko)}" target="_blank" rel="noopener">${icon("map")}Naver</a>`);
-  return out.join("");
+/* Navigation: Naver Map app first (falls back to the Naver web map), Kakao as backup. */
+const enc = encodeURIComponent;
+const appName = () => enc(location.origin + location.pathname);
+export function naverTarget({ query, name, lat, lng, precise }) {
+  const q = query || name;
+  const scheme = precise && lat != null
+    ? `nmap://route/car?dlat=${lat}&dlng=${lng}&dname=${enc(name || q)}&appname=${appName()}`
+    : `nmap://search?query=${enc(q)}&appname=${appName()}`;
+  return { scheme, web: `https://map.naver.com/p/search/${enc(q)}` };
 }
+export function naverBtn(target, cls = "btn primary", label = "導航") {
+  const t = naverTarget(target);
+  return `<a class="${cls}" href="${t.web}" data-nmap="${esc(t.scheme)}" target="_blank" rel="noopener">${icon("nav")}${label}</a>`;
+}
+function kakaoBtn({ query, name, lat, lng, precise }, cls = "btn") {
+  const href = precise && lat != null ? `https://map.kakao.com/link/to/${enc(name || query)},${lat},${lng}` : `https://map.kakao.com/link/search/${enc(query || name)}`;
+  return `<a class="${cls}" href="${href}" target="_blank" rel="noopener">${icon("map")}Kakao</a>`;
+}
+function stopTarget(s) {
+  return { query: s.extra?.search_q || s.name_ko || s.name, name: s.name_ko || s.name, lat: s.lat, lng: s.lng,
+    precise: s.lat != null && !s.extra?.approx && !s.extra?.search_q };
+}
+function navLinks(s, compact, cls = "btn primary") {
+  if (s.options?.length) return "";
+  if (!isPlace(s) && !s.extra?.search_q && s.lat == null) return "";
+  const t = stopTarget(s);
+  return naverBtn(t, cls, s.extra?.search_q ? "找地點" : "導航") + (compact ? "" : kakaoBtn(t));
+}
+const optTarget = o => ({ query: o.q || o.name_ko, name: o.name_ko || o.name });
 
 /* ---------- weather card ---------- */
 export function weatherCard(day, w) {
@@ -141,7 +158,7 @@ export function todayView() {
           <div class="next-meta"><span class="pill">下一站</span><b>${esc(next.time || "")}</b>${next.drive_min ? `<span>・開車約 ${next.drive_min} 分</span>` : ""}</div>
           <h2>${esc(next.name)}</h2>
           ${opt ? `<p>${esc(opt.name)}${next.options.length > 1 ? ` 等 ${next.options.length} 家` : ""}</p>` : next.name_ko ? `<p lang="ko">${esc(next.name_ko)}</p>` : ""}
-          <div class="actions">${opt ? `<a class="btn primary grow" href="https://map.kakao.com/link/search/${encodeURIComponent(opt.q || opt.name_ko)}" target="_blank" rel="noopener">${icon("nav")}導航</a>` : navLinks(next, true).replace('class="btn primary"', 'class="btn primary grow"')}
+          <div class="actions">${opt ? naverBtn(optTarget(opt), "btn primary grow") : navLinks(next, true, "btn primary grow")}
             <button class="btn grow" type="button" data-act="check" data-id="${next.id}" data-date="${day.date}">去過了</button></div>
         </div></section>`;
     } else {
@@ -257,12 +274,10 @@ function stopRow(day, s, i, num, nextIdx) {
   const wd = wdNum(day.date);
   const opts = (s.options || []).map(o => {
     const closed = (o.closed || []).includes(wd);
-    const qq = encodeURIComponent(o.q || o.name_ko);
     return `<li class="opt${closed ? " is-closed" : ""}"><div class="opt-name">${esc(o.name)}</div>
       <div class="opt-hours">${closed ? `<b class="bad">${WEEK[wd]}公休</b>　` : ""}${esc(o.hours)}${o.verified ? "" : `<span class="unv">待確認</span>`}</div>
       ${o.note ? `<div class="opt-note">${esc(o.note)}</div>` : ""}
-      ${o.name_ko && o.name !== "改在機場吃" ? `<div class="opt-act"><a class="btn primary" href="https://map.kakao.com/link/search/${qq}" target="_blank" rel="noopener">${icon("nav")}Kakao</a>
-        <a class="btn" href="https://map.naver.com/p/search/${qq}" target="_blank" rel="noopener">${icon("map")}Naver</a></div>` : ""}</li>`;
+      ${o.name_ko && o.name !== "改在機場吃" ? `<div class="opt-act">${naverBtn(optTarget(o), "btn primary", "Naver 導航")}${kakaoBtn(optTarget(o))}</div>` : ""}</li>`;
   }).join("");
   const tips = (s.tips || []).filter(t => !(sunset && /日落約/.test(t)));
   const editor = s.updated_by ? memberById(s.updated_by) : null;
@@ -361,7 +376,7 @@ export function mapView(state) {
       <p class="muted">${md(sel.day)}（${weekday(sel.day)}）${esc(sel.time || "")}・${CAT[sel.category] || ""}${sel.plan === "rain" ? "・雨天備案" : ""}</p>
       <h2>${esc(sel.name)}</h2>${sel.name_ko ? `<p class="muted" lang="ko">${esc(sel.name_ko)}</p>` : ""}
       ${sel.tips?.[0] ? `<p>${esc(sel.tips[0])}</p>` : ""}
-      <div class="actions">${sel.options?.length ? `<a class="btn primary grow" href="https://map.kakao.com/link/search/${encodeURIComponent(sel.options[0].q || sel.options[0].name_ko)}" target="_blank" rel="noopener">${icon("nav")}導航</a>` : navLinks(sel, true).replace('class="btn primary"', 'class="btn primary grow"')}
+      <div class="actions">${sel.options?.length ? naverBtn(optTarget(sel.options[0]), "btn primary grow") : navLinks(sel, true, "btn primary grow")}
         <a class="btn grow" href="#plan" data-act="goto-stop" data-date="${sel.day}" data-id="${sel.id}" data-plan="${sel.plan}">在行程裡看</a></div>
     </section>`;
   }
@@ -480,7 +495,7 @@ export function infoSheet() {
   const stays = (info.stays || []).map((st, i) => `<li class="info-item">
       <div><b class="nm">${esc(st.name)}</b>${st.check_in ? `<small>${md(st.check_in)} 入住${st.check_out ? `・${md(st.check_out)} 退房` : ""}</small>` : ""}</div>
       ${st.address_ko ? `<p lang="ko">${esc(st.address_ko)}</p>` : ""}${st.phone ? `<p>電話 ${esc(st.phone)}</p>` : ""}${st.note ? `<p class="muted">${esc(st.note)}</p>` : ""}
-      <div class="actions"><a class="btn primary" href="https://map.kakao.com/link/search/${encodeURIComponent(st.address_ko || st.name)}" target="_blank" rel="noopener">${icon("nav")}導航</a>
+      <div class="actions">${naverBtn({ query: st.address_ko || st.name, name: st.name })}
       ${st.address_ko ? `<button class="btn" type="button" data-act="show-driver" data-kind="stay" data-idx="${i}">給司機看</button>` : ""}</div></li>`).join("");
   const r = info.rental || {};
   const rentalRows = [["公司", r.company], ["訂位代號", r.booking], ["取車", [r.pickup_time, r.pickup_place].filter(Boolean).join("・")], ["還車", [r.return_time, r.return_place].filter(Boolean).join("・")], ["電話", r.phone], ["備註", r.note]].filter(x => x[1]);
@@ -494,6 +509,7 @@ export function infoSheet() {
       <p class="muted small">要帶：${esc((t.transport?.docs || []).join("、"))}。還車前要加滿油。</p>
     ${bookings.length ? `<h3>訂位代號</h3><dl class="kv">${bookings.map(b => `<dt>${esc(b.label || "")}</dt><dd><b class="code">${esc(b.code || "")}</b></dd>`).join("")}</dl>` : ""}
     <h3>航班</h3><ul class="info-list">${f}</ul>
+    <h3>導航</h3><p class="small">「導航」會打開 <b>Naver Map</b> app（有中文介面），沒裝的話會開網頁版。出發前先裝好、下載濟州地圖。Kakao 按鈕留著當備用。</p>
     <h3>緊急電話</h3><ul class="info-list">
       <li><b>112</b> 警察</li><li><b>119</b> 火警、救護車</li><li><b>1330</b> 韓國觀光公社旅遊熱線（有中文）</li></ul>
     <h3>實用韓文</h3><ul class="phrases">${phrases.map(([zh, ko, ro]) => `<li><span>${zh}</span><b lang="ko">${ko}</b><small>${ro}</small></li>`).join("")}</ul>`;
@@ -630,10 +646,9 @@ export function stayFor(date) {
 function stayCard(date) {
   const st = stayFor(date);
   if (!st) return "";
-  const q = encodeURIComponent(st.address_ko || st.name);
   return `<section class="card stay-card"><p class="muted small">今晚住</p><h3>${esc(st.name)}</h3>
     ${st.address_ko ? `<p lang="ko">${esc(st.address_ko)}</p>` : ""}
-    <div class="actions"><a class="btn primary" href="https://map.kakao.com/link/search/${q}" target="_blank" rel="noopener">${icon("nav")}導航</a>
+    <div class="actions">${naverBtn({ query: st.address_ko || st.name, name: st.name })}
       ${st.address_ko ? `<button class="btn" type="button" data-act="show-driver" data-kind="stay" data-idx="${S.info.stays.indexOf(st)}">給司機看</button>` : ""}</div></section>`;
 }
 export function driverSheet(name, address) {
