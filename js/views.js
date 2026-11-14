@@ -19,11 +19,7 @@ export function stopsFor(date, plan) {
 }
 export const hasRain = date => S.stops.some(s => s.day === date && s.plan === "rain");
 let editMode = false;
-let reorder = null; // {date, plan, ids:[...]} while sorting
-export function startReorder(date, plan) { reorder = { date, plan, ids: stopsFor(date, plan).map(s => s.id) }; }
-export function getReorder() { return reorder; }
-export function endReorder() { reorder = null; }
-export function setEditMode(v) { editMode = v; if (!v) reorder = null; }
+export function setEditMode(v) { editMode = v; }
 export function getEditMode() { return editMode; }
 const editable = () => S.mode === "synced" && editMode;
 
@@ -214,10 +210,7 @@ export function planView(date) {
       <span class="d">${md(d.date)}</span><span class="w">${weekday(d.date)}・${esc(d.title || "待補")}${d.date === now.date ? '<span class="today-dot" aria-label="今天"></span>' : ""}</span>
       <span class="bar" style="background:${DAY_COLORS[i % DAY_COLORS.length]}"></span></button>`).join("")}</nav>`;
 
-  if (reorder && (reorder.date !== day.date || reorder.plan !== plan)) reorder = null;
-  if (reorder && editable()) return topbar("行程", "", true) + tabs + reorderView(day, plan);
-  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<div class="editing-bar"><span>編輯中：點鉛筆改內容，改完按右上角「完成」</span>
-    <button class="btn" type="button" data-act="ro-start" data-date="${day.date}" data-plan="${plan}">${icon("sort")}拖曳排順序</button></div>` : ""}`;
+  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<p class="editing-bar">編輯中：點鉛筆改內容，<b>長按行程上下拖</b>可換順序</p>` : ""}`;
   if (S.mode === "local") html += `<p class="callout soft">${icon("user")}<span>加入旅行後，大家都能在這裡新增、修改行程。<button class="link-btn inline" type="button" data-act="open-join">加入</button></span></p>`;
   html += `<section class="cover" aria-label="Day ${day.day} 封面">
       <svg class="art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
@@ -241,11 +234,14 @@ export function planView(date) {
   }
   if (list.some(s => s.lat != null)) html += dayMap(day, list, nextIdx);
   else if (places.length) html += `<p class="callout soft">${icon("map")}<span>這天的站都還沒放位置，所以沒有路線圖。打開右上角「編輯」，在每站的鉛筆裡點地圖放位置。</span></p>`;
-  html += `<div class="section-h"><h3>行程</h3><span>${places.length} 站</span></div><ol class="timeline">`;
+  html += `<div class="section-h"><h3>行程</h3><span>${places.length} 站</span></div><ol class="timeline" id="timeline" data-date="${day.date}" data-plan="${plan}">`;
   if (arr) html += flightRow(arr, "arr");
-  let n = 0;
+  let n = 0, lastT = null;
   list.forEach((s, i) => {
     const p = list[i - 1];
+    const t = toMin(s.time);
+    s._early = t != null && lastT != null && t < lastT;
+    if (t != null) lastT = t;
     if (p && s.drive_min) {
       const pt = toMin(p.time), st = toMin(s.time);
       const late = pt != null && st != null ? pt + (p.duration_min || 0) + s.drive_min - st : 0;
@@ -290,7 +286,7 @@ function stopRow(day, s, i, num, nextIdx) {
   const tips = (s.tips || []).filter(t => !(sunset && /日落約/.test(t)));
   const editor = s.updated_by ? memberById(s.updated_by) : null;
   const nav = navLinks(s);
-  return `<li class="${cls}" id="stop-${s.id}">
+  return `<li class="${cls}" id="stop-${s.id}"${editable() ? ` data-sid="${s.id}"` : ""}>
     <div class="time">${esc(s.time || "")}</div>
     <div class="rail"><div class="dot">${move ? "" : num}</div></div>
     <div class="card">
@@ -300,6 +296,7 @@ function stopRow(day, s, i, num, nextIdx) {
           ${s.name_ko && !move ? `<p class="sub" lang="ko">${esc(s.name_ko)}</p>` : ""}
           ${move ? "" : `<p class="sub"><span class="chip" style="background:color-mix(in srgb, ${color} 14%, white);color:${color}">${CAT[s.category] || ""}</span>${s.duration_min ? `約 ${s.duration_min} 分鐘` : ""}</p>`}</div></div>
       ${editable() && !move && s.lat == null ? `<p class="warn soft">還沒放位置：不會出現在地圖上，按鉛筆補上</p>` : ""}
+      ${editable() && s._early ? `<p class="warn">時間比上一站早：按鉛筆改時間</p>` : ""}
       ${s.extra?.warn === "tight" ? `<p class="warn">⚠ 到機場的時間偏緊</p>` : ""}
       ${sunsetBlock}
       ${tips.length ? `<ul class="tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
@@ -336,7 +333,7 @@ function dayMap(day, list, nextIdx) {
   </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
 }
 
-export const APP_VERSION = "11.1";
+export const APP_VERSION = "12";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -687,36 +684,3 @@ function unplacedCard(filter) {
       ${S.mode === "synced" ? `<button class="btn" type="button" data-act="edit-stop" data-id="${s.id}">放位置</button>` : ""}</li>`).join("")}</ul></section>`;
 }
 
-/* ---------- drag to reorder ---------- */
-function reorderView(day, plan) {
-  const by = Object.fromEntries(stopsFor(day.date, plan).map(s => [s.id, s]));
-  const items = reorder.ids.map(id => by[id]).filter(Boolean);
-  let prevT = null;
-  const rows = items.map((s, i) => {
-    const t = toMin(s.time);
-    const bad = t != null && prevT != null && t < prevT;
-    if (t != null) prevT = t;
-    return `<li class="ro-item" data-id="${s.id}">
-      <span class="ro-time${bad ? " bad" : ""}">${esc(s.time || "—")}</span>
-      <span class="ro-name"><b>${esc(s.name)}</b>${bad ? `<small>時間比上一站早</small>` : `<small>${CAT[s.category] || ""}</small>`}</span>
-      <span class="ro-arrows">
-        <button type="button" data-act="ro-move" data-id="${s.id}" data-dir="-1" aria-label="${esc(s.name)} 往前"${i === 0 ? " disabled" : ""}>${icon("up")}</button>
-        <button type="button" data-act="ro-move" data-id="${s.id}" data-dir="1" aria-label="${esc(s.name)} 往後"${i === items.length - 1 ? " disabled" : ""}>${icon("down")}</button></span>
-      <span class="ro-handle" aria-hidden="true">${icon("grip")}</span>
-    </li>`;
-  }).join("");
-  return `<main class="page">
-    <div class="editing-bar"><span>按住右邊的把手上下拖，或用箭頭一格一格移</span></div>
-    <ol class="ro-list" id="ro-list">${rows}</ol>
-    <p class="muted small">排完後，換了前後站的開車時間會重新估算。時間不會自動改，紅字的站記得用鉛筆改時間。</p>
-    <div class="row-btns ro-done">
-      <button class="btn" type="button" data-act="ro-cancel">取消</button>
-      <button class="btn primary" type="button" data-act="ro-save">完成排序</button></div>
-  </main>`;
-}
-export function moveInReorder(id, dir) {
-  const i = reorder.ids.indexOf(id), j = i + dir;
-  if (i < 0 || j < 0 || j >= reorder.ids.length) return;
-  [reorder.ids[i], reorder.ids[j]] = [reorder.ids[j], reorder.ids[i]];
-}
-export function setReorderIds(ids) { if (reorder) reorder.ids = ids; }
