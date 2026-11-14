@@ -217,7 +217,7 @@ export function planView(date) {
   if (reorder && (reorder.date !== day.date || reorder.plan !== plan)) reorder = null;
   if (reorder && editable()) return topbar("行程", "", true) + tabs + reorderView(day, plan);
   let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<div class="editing-bar"><span>編輯中：點鉛筆改內容，改完按右上角「完成」</span>
-    ${list.length > 1 ? `<button class="btn" type="button" data-act="ro-start" data-date="${day.date}" data-plan="${plan}">${icon("sort")}拖曳排順序</button>` : ""}</div>` : ""}`;
+    <button class="btn" type="button" data-act="ro-start" data-date="${day.date}" data-plan="${plan}">${icon("sort")}拖曳排順序</button></div>` : ""}`;
   if (S.mode === "local") html += `<p class="callout soft">${icon("user")}<span>加入旅行後，大家都能在這裡新增、修改行程。<button class="link-btn inline" type="button" data-act="open-join">加入</button></span></p>`;
   html += `<section class="cover" aria-label="Day ${day.day} 封面">
       <svg class="art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
@@ -336,11 +336,12 @@ function dayMap(day, list, nextIdx) {
   </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
 }
 
+export const APP_VERSION = "11.1";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
   const dn = t.drive_note ? `<dt>車程</dt><dd>${esc(t.drive_note)}</dd>` : "";
-  return `<footer class="info"><h2>航班與提醒</h2><dl>${f}${dn}</dl><button class="link-btn" type="button" data-act="open-info">更多：住宿、緊急電話、實用韓文</button></footer>`;
+  return `<footer class="info"><h2>航班與提醒</h2><dl>${f}${dn}</dl><button class="link-btn" type="button" data-act="open-info">更多：住宿、緊急電話、實用韓文</button><p class="ver">版本 ${APP_VERSION}</p></footer>`;
 }
 
 /* ---------- 地圖 ---------- */

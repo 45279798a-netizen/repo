@@ -1,5 +1,5 @@
 // Offline cache so the app still opens with weak signal in Jeju.
-const CACHE = "jeju-trip-v11";
+const CACHE = "jeju-trip-v12";
 const FILES = ["./", "index.html", "data/itinerary.json", "manifest.json", "icon.svg", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png",
   "js/main.js", "js/store.js", "js/views.js", "js/util.js", "js/art.js", "js/config.js"];
 
@@ -16,7 +16,7 @@ self.addEventListener("fetch", e => {
   const cacheable = url.origin === location.origin || url.hostname === "cdn.jsdelivr.net" || url.hostname === "fonts.gstatic.com" || url.hostname === "fonts.googleapis.com";
   if (!cacheable) return;
   e.respondWith(
-    fetch(e.request).then(res => {
+    fetch(e.request, { cache: "no-cache" }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
       return res;
     }).catch(() => caches.match(e.request))

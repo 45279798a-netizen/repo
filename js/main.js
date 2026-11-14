@@ -161,7 +161,7 @@ document.addEventListener("click", e => {
     }
     case "pick-zoom": V.zoomPicker(el.dataset.dir, currentPick()); redrawPicker(); break;
     case "pick-clear": setPick(null); break;
-    case "ro-start": V.startReorder(el.dataset.date, el.dataset.plan); render(true); break;
+    case "ro-start": if (V.stopsFor(el.dataset.date, el.dataset.plan).length < 2) { toast("這天至少要有兩站才能排順序"); break; } V.startReorder(el.dataset.date, el.dataset.plan); render(true); break;
     case "ro-move": V.moveInReorder(id, Number(el.dataset.dir)); render(); document.querySelector(`.ro-item[data-id="${id}"] [data-dir="${el.dataset.dir}"]`)?.focus(); break;
     case "ro-cancel": V.endReorder(); render(); break;
     case "ro-save": saveReorder(); break;
@@ -476,4 +476,12 @@ store.init().catch(() => {
   app.innerHTML = `<main class="page"><p class="error">讀不到行程資料（data/itinerary.json）。請用網址開啟這個頁面，不要直接點開檔案。</p></main>`;
 });
 
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
+    // Home-screen apps resume without reloading; check for a new version whenever the app comes back.
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
+  }).catch(() => {});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+}
