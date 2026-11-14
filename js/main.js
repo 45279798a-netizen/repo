@@ -276,29 +276,35 @@ const HOLD = 400;
 function dragStart(li, y) {
   const tl = li.parentElement;
   tl.classList.add("sorting");
-  // Cards collapse while sorting; keep the lifted one under the finger.
-  const r0 = li.getBoundingClientRect();
-  window.scrollBy(0, r0.top + r0.height / 2 - y);
+  // Cards collapse while sorting. If the whole day now fits on screen, show all of it so no scrolling is needed;
+  // otherwise keep the lifted row under the finger.
+  const head = document.querySelector(".days")?.getBoundingClientRect().bottom || 0;
+  const room = window.innerHeight - 84 - head;
+  const tr = tl.getBoundingClientRect();
+  const fits = tr.height <= room;
+  if (fits) window.scrollBy(0, tr.top - head - Math.max(0, (room - tr.height) / 2));
+  else { const r0 = li.getBoundingClientRect(); window.scrollBy(0, r0.top + r0.height / 2 - y); }
   const r = li.getBoundingClientRect();
   // A floating copy follows the finger; the real row stays in the list as the drop slot.
   const ghost = li.cloneNode(true);
   ghost.classList.add("ghost"); ghost.removeAttribute("id");
-  Object.assign(ghost.style, { left: r.left + "px", width: r.width + "px", top: r.top + "px" });
+  const off = fits ? r.height / 2 : y - r.top;
+  Object.assign(ghost.style, { left: r.left + "px", width: r.width + "px", top: (y - off) + "px" });
   tl.appendChild(ghost);
   li.classList.add("slot");
-  drag = { li, tl, ghost, y, off: y - r.top, raf: 0, order: ids(tl) };
+  drag = { li, tl, ghost, y, y0: y, moved: false, fits, off, raf: 0, order: ids(tl) };
   navigator.vibrate?.(15);
   const tick = () => {
     if (!drag) return;
     // Auto-scroll near the edges: faster the deeper you go, and it speeds up the longer you hold there.
-    const vh = window.innerHeight, top = 150, bottom = vh - 84 - 130;
+    const vh = window.innerHeight, top = (document.querySelector(".days")?.getBoundingClientRect().bottom || 0) + 70, bottom = vh - 84 - 90;
     let depth = 0;
-    if (drag.y < top) depth = -(top - drag.y) / top;
-    else if (drag.y > bottom) depth = (drag.y - bottom) / (vh - bottom);
-    if (depth) {
+    if (drag.y < top) depth = -(top - drag.y) / 70;
+    else if (drag.y > bottom) depth = (drag.y - bottom) / 90;
+    if (depth && !drag.fits) {
       drag.held = (drag.held || 0) + 1;
-      const boost = Math.min(2.5, 1 + drag.held / 40);
-      const d = Math.sign(depth) * Math.round((8 + Math.min(1, Math.abs(depth)) * 24) * boost);
+      const boost = Math.min(3, 1 + drag.held / 25);
+      const d = Math.sign(depth) * Math.round((18 + Math.min(1, Math.abs(depth)) * 40) * boost);
       window.scrollBy(0, d); follow();
     } else drag.held = 0;
     drag.raf = requestAnimationFrame(tick);
@@ -310,6 +316,7 @@ const ids = tl => rows(tl).map(x => x.dataset.sid);
 function follow() {
   const { li, tl, ghost } = drag;
   ghost.style.top = (drag.y - drag.off) + "px";
+  if (!drag.moved) { if (Math.abs(drag.y - drag.y0) < 8) return; drag.moved = true; }
   // Drop slot = before the first other row whose middle is below the finger.
   const others = rows(tl).filter(x => x !== li);
   const target = others.find(x => { const r = x.getBoundingClientRect(); return drag.y < r.top + r.height / 2; });
