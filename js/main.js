@@ -143,7 +143,7 @@ document.addEventListener("click", e => {
     case "open-me": openSheet(V.meSheet()); break;
     case "open-info": openSheet(V.infoSheet()); break;
     case "leave": if (confirmLeave(el)) guard(() => store.leave()); break;
-    case "day": state.planDate = el.dataset.date; ls.set("jeju-plan-date", state.planDate); render(true); break;
+    case "day": V.endReorder(); state.planDate = el.dataset.date; ls.set("jeju-plan-date", state.planDate); render(true); break;
     case "plan": V.setPlan(state.planDate, el.dataset.plan); ls.set("jeju-plan", V.plansState()); render(); break;
     case "check": V.toggleDone(id); ls.set("jeju-done", V.doneState()); render(); break;
     case "jump": jump(id); break;
@@ -161,6 +161,10 @@ document.addEventListener("click", e => {
     }
     case "pick-zoom": V.zoomPicker(el.dataset.dir, currentPick()); redrawPicker(); break;
     case "pick-clear": setPick(null); break;
+    case "ro-start": V.startReorder(el.dataset.date, el.dataset.plan); render(true); break;
+    case "ro-move": V.moveInReorder(id, Number(el.dataset.dir)); render(); document.querySelector(`.ro-item[data-id="${id}"] [data-dir="${el.dataset.dir}"]`)?.focus(); break;
+    case "ro-cancel": V.endReorder(); render(); break;
+    case "ro-save": saveReorder(); break;
     case "pick-search": {
       const f = sheetBody.querySelector("form[data-act=save-stop]");
       const q = (f.name_ko.value || f.name.value).trim();
@@ -268,6 +272,74 @@ document.addEventListener("click", e => {
   const [lat, lng] = P.ll(x, y);
   setPick({ lat: +lat.toFixed(5), lng: +lng.toFixed(5) });
 });
+
+/* ---------- drag to reorder (pointer events, works with touch) ---------- */
+let drag = null;
+document.addEventListener("pointerdown", e => {
+  const h = e.target.closest(".ro-handle");
+  if (!h) return;
+  const li = h.closest(".ro-item");
+  e.preventDefault();
+  drag = { li, list: li.parentElement, startY: e.clientY, y: e.clientY, raf: 0 };
+  li.classList.add("dragging");
+  try { h.setPointerCapture(e.pointerId); } catch {}
+  const tick = () => {
+    if (!drag) return;
+    const edge = 90, vh = window.innerHeight;
+    let d = 0;
+    if (drag.y < edge) d = -Math.ceil((edge - drag.y) / 6);
+    else if (drag.y > vh - edge - 84) d = Math.ceil((drag.y - (vh - edge - 84)) / 6);
+    if (d) { const before = window.scrollY; window.scrollBy(0, d); drag.startY -= window.scrollY - before; follow(); }
+    drag.raf = requestAnimationFrame(tick);
+  };
+  drag.raf = requestAnimationFrame(tick);
+});
+function follow() {
+  const { li, list } = drag;
+  li.style.transform = `translateY(${drag.y - drag.startY}px)`;
+  const r = li.getBoundingClientRect(), mid = r.top + r.height / 2;
+  const gap = parseFloat(getComputedStyle(list).rowGap) || 0;
+  const next = li.nextElementSibling, prev = li.previousElementSibling;
+  if (next) { const n = next.getBoundingClientRect(); if (mid > n.top + n.height / 2) { list.insertBefore(next, li); drag.startY += n.height + gap; li.style.transform = `translateY(${drag.y - drag.startY}px)`; navigator.vibrate?.(8); } }
+  if (prev) { const p = prev.getBoundingClientRect(); if (mid < p.top + p.height / 2) { list.insertBefore(li, prev); drag.startY -= p.height + gap; li.style.transform = `translateY(${drag.y - drag.startY}px)`; navigator.vibrate?.(8); } }
+}
+document.addEventListener("pointermove", e => { if (!drag) return; e.preventDefault(); drag.y = e.clientY; follow(); }, { passive: false });
+function endDrag() {
+  if (!drag) return;
+  cancelAnimationFrame(drag.raf);
+  const { li, list } = drag;
+  li.classList.remove("dragging"); li.style.transform = "";
+  V.setReorderIds([...list.querySelectorAll(".ro-item")].map(x => x.dataset.id));
+  drag = null;
+  render();
+}
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);
+
+function saveReorder() {
+  const ro = V.getReorder(); if (!ro) return;
+  const by = Object.fromEntries(V.stopsFor(ro.date, ro.plan).map(s => [s.id, s]));
+  const before = V.stopsFor(ro.date, ro.plan).map(s => s.id);
+  const list = ro.ids.map(id => ({ ...by[id] })).filter(x => x.id);
+  const prevLocated = ids => { const m = {}; let p = null; ids.forEach(id => { const s = by[id]; if (s.lat != null) { m[id] = p; p = id; } }); return m; };
+  const oldPrev = prevLocated(before), newPrev = prevLocated(ro.ids);
+  const changed = [];
+  let prev = null;
+  list.forEach((s, k) => {
+    let dirty = false;
+    if (s.position !== k * 10) { s.position = k * 10; dirty = true; }
+    const here = s.lat != null ? [s.lat, s.lng] : null;
+    if (here && prev && (oldPrev[s.id] !== newPrev[s.id] || s.extra?.drive_auto || s.drive_min == null)) {
+      const est = driveEstimate(prev, here);
+      if (s.drive_min !== est) { s.drive_min = est; s.extra = { ...(s.extra || {}), drive_auto: true }; dirty = true; }
+    }
+    if (here) prev = here;
+    if (dirty) changed.push(s);
+  });
+  V.endReorder();
+  if (!changed.length) { render(); return; }
+  guard(async () => { await store.saveStops(changed); toast("順序存好了"); render(); });
+}
 
 /* Keep new stops in time order and refresh estimated drive times. */
 function placeAndEstimate(stop, isNew) {

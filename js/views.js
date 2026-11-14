@@ -19,7 +19,11 @@ export function stopsFor(date, plan) {
 }
 export const hasRain = date => S.stops.some(s => s.day === date && s.plan === "rain");
 let editMode = false;
-export function setEditMode(v) { editMode = v; }
+let reorder = null; // {date, plan, ids:[...]} while sorting
+export function startReorder(date, plan) { reorder = { date, plan, ids: stopsFor(date, plan).map(s => s.id) }; }
+export function getReorder() { return reorder; }
+export function endReorder() { reorder = null; }
+export function setEditMode(v) { editMode = v; if (!v) reorder = null; }
 export function getEditMode() { return editMode; }
 const editable = () => S.mode === "synced" && editMode;
 
@@ -210,7 +214,10 @@ export function planView(date) {
       <span class="d">${md(d.date)}</span><span class="w">${weekday(d.date)}・${esc(d.title || "待補")}${d.date === now.date ? '<span class="today-dot" aria-label="今天"></span>' : ""}</span>
       <span class="bar" style="background:${DAY_COLORS[i % DAY_COLORS.length]}"></span></button>`).join("")}</nav>`;
 
-  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<p class="editing-bar">編輯中：點鉛筆改內容，改完按右上角「完成」</p>` : ""}`;
+  if (reorder && (reorder.date !== day.date || reorder.plan !== plan)) reorder = null;
+  if (reorder && editable()) return topbar("行程", "", true) + tabs + reorderView(day, plan);
+  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<div class="editing-bar"><span>編輯中：點鉛筆改內容，改完按右上角「完成」</span>
+    ${list.length > 1 ? `<button class="btn" type="button" data-act="ro-start" data-date="${day.date}" data-plan="${plan}">${icon("sort")}拖曳排順序</button>` : ""}</div>` : ""}`;
   if (S.mode === "local") html += `<p class="callout soft">${icon("user")}<span>加入旅行後，大家都能在這裡新增、修改行程。<button class="link-btn inline" type="button" data-act="open-join">加入</button></span></p>`;
   html += `<section class="cover" aria-label="Day ${day.day} 封面">
       <svg class="art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
@@ -678,3 +685,37 @@ function unplacedCard(filter) {
     <ul>${list.map(s => `<li><span><b>${md(s.day)} ${esc(s.time || "")}</b>${esc(s.name)}</span>
       ${S.mode === "synced" ? `<button class="btn" type="button" data-act="edit-stop" data-id="${s.id}">放位置</button>` : ""}</li>`).join("")}</ul></section>`;
 }
+
+/* ---------- drag to reorder ---------- */
+function reorderView(day, plan) {
+  const by = Object.fromEntries(stopsFor(day.date, plan).map(s => [s.id, s]));
+  const items = reorder.ids.map(id => by[id]).filter(Boolean);
+  let prevT = null;
+  const rows = items.map((s, i) => {
+    const t = toMin(s.time);
+    const bad = t != null && prevT != null && t < prevT;
+    if (t != null) prevT = t;
+    return `<li class="ro-item" data-id="${s.id}">
+      <span class="ro-time${bad ? " bad" : ""}">${esc(s.time || "—")}</span>
+      <span class="ro-name"><b>${esc(s.name)}</b>${bad ? `<small>時間比上一站早</small>` : `<small>${CAT[s.category] || ""}</small>`}</span>
+      <span class="ro-arrows">
+        <button type="button" data-act="ro-move" data-id="${s.id}" data-dir="-1" aria-label="${esc(s.name)} 往前"${i === 0 ? " disabled" : ""}>${icon("up")}</button>
+        <button type="button" data-act="ro-move" data-id="${s.id}" data-dir="1" aria-label="${esc(s.name)} 往後"${i === items.length - 1 ? " disabled" : ""}>${icon("down")}</button></span>
+      <span class="ro-handle" aria-hidden="true">${icon("grip")}</span>
+    </li>`;
+  }).join("");
+  return `<main class="page">
+    <div class="editing-bar"><span>按住右邊的把手上下拖，或用箭頭一格一格移</span></div>
+    <ol class="ro-list" id="ro-list">${rows}</ol>
+    <p class="muted small">排完後，換了前後站的開車時間會重新估算。時間不會自動改，紅字的站記得用鉛筆改時間。</p>
+    <div class="row-btns ro-done">
+      <button class="btn" type="button" data-act="ro-cancel">取消</button>
+      <button class="btn primary" type="button" data-act="ro-save">完成排序</button></div>
+  </main>`;
+}
+export function moveInReorder(id, dir) {
+  const i = reorder.ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= reorder.ids.length) return;
+  [reorder.ids[i], reorder.ids[j]] = [reorder.ids[j], reorder.ids[i]];
+}
+export function setReorderIds(ids) { if (reorder) reorder.ids = ids; }
