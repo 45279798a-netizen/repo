@@ -21,7 +21,7 @@ function readHash() {
   const h = location.hash.replace("#", "");
   state.tab = TABS.includes(h) ? h : "today";
 }
-window.addEventListener("hashchange", () => { readHash(); render(true); });
+window.addEventListener("hashchange", () => { readHash(); V.setEditMode(false); render(true); });
 
 function pickPlanDate() {
   const today = kstNow().date;
@@ -172,6 +172,7 @@ document.addEventListener("click", e => {
       if (img?.src) openSheet(`<img class="full-photo" src="${img.src}" alt="照片">`);
       break;
     }
+    case "toggle-edit": V.setEditMode(!V.getEditMode()); render(); break;
     case "demo": setDemoTime("2026-11-28T13:00:00"); toast("預覽 11/28（六）13:00 的樣子"); render(true); break;
     case "demo-off": setDemoTime(null); render(true); break;
   }

@@ -18,7 +18,10 @@ export function stopsFor(date, plan) {
   return S.stops.filter(s => s.day === date && s.plan === plan).sort((a, b) => a.position - b.position);
 }
 export const hasRain = date => S.stops.some(s => s.day === date && s.plan === "rain");
-const editable = () => S.mode === "synced";
+let editMode = false;
+export function setEditMode(v) { editMode = v; }
+export function getEditMode() { return editMode; }
+const editable = () => S.mode === "synced" && editMode;
 
 function avatar(m, size = 28) {
   const col = m?.color || "#8A9396";
@@ -26,15 +29,16 @@ function avatar(m, size = 28) {
   return `<span class="avatar" style="width:${size}px;height:${size}px;background:color-mix(in srgb, ${col} 18%, white);color:color-mix(in srgb, ${col} 75%, black);font-size:${Math.round(size * 0.42)}px" title="${esc(name)}">${esc(name.slice(-1))}</span>`;
 }
 
-export function topbar(title, sub) {
+export function topbar(title, sub, canEdit) {
   const chip = S.mode === "synced"
     ? `<span class="sync ok">${icon("sync")}已同步</span>`
     : S.mode === "offline" ? `<span class="sync off">${icon("cloud")}離線中</span>` : `<button class="sync join" type="button" data-act="open-join">加入旅行</button>`;
   const me = S.me ? `<button class="me-btn" type="button" data-act="open-me" aria-label="我的設定">${avatar(S.me, 36)}</button>` :
     `<button class="me-btn icon-only" type="button" data-act="open-info" aria-label="旅行資訊">${icon("info")}</button>`;
+  const edit = canEdit ? `<button class="edit-toggle${editMode ? " on" : ""}" type="button" data-act="toggle-edit" aria-pressed="${editMode}">${editMode ? "完成" : `${icon("edit")}編輯`}</button>` : "";
   return `<header class="topbar">
     <div class="tb-title"><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ""}</div>
-    <div class="tb-right">${chip}${me}</div>
+    <div class="tb-right">${edit}${edit ? "" : chip}${me}</div>
   </header>`;
 }
 
@@ -188,7 +192,7 @@ export function planView(date) {
       <span class="d">${md(d.date)}</span><span class="w">${weekday(d.date)}・${esc(d.title || "待補")}${d.date === now.date ? '<span class="today-dot" aria-label="今天"></span>' : ""}</span>
       <span class="bar" style="background:${DAY_COLORS[i % DAY_COLORS.length]}"></span></button>`).join("")}</nav>`;
 
-  let html = topbar("行程") + tabs + `<main class="page">`;
+  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<p class="editing-bar">編輯中：點鉛筆改內容，改完按右上角「完成」</p>` : ""}`;
   if (S.mode === "local") html += `<p class="callout soft">${icon("user")}<span>加入旅行後，大家都能在這裡新增、修改行程。<button class="link-btn inline" type="button" data-act="open-join">加入</button></span></p>`;
   html += `<section class="cover" aria-label="Day ${day.day} 封面">
       <svg class="art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
@@ -383,7 +387,7 @@ export function listView(state) {
   const first = S.days[0]?.date;
   const diff = first ? Math.round((Date.parse(first) - Date.parse(kstNow().date)) / 864e5) : 0;
   const groupNames = [...new Set(S.checklist.filter(c => c.scope === tab).map(c => c.group_name))];
-  return topbar("清單", diff > 0 ? `出發還有 ${diff} 天` : "") + `<main class="page">
+  return topbar("清單", diff > 0 ? `出發還有 ${diff} 天` : "", true) + `<main class="page">
     <div class="seg big" role="group" aria-label="切換清單">
       <button type="button" data-act="list-tab" data-tab="shared" aria-pressed="${tab === "shared"}">大家一起</button>
       <button type="button" data-act="list-tab" data-tab="mine" aria-pressed="${tab === "mine"}">我的</button></div>
@@ -397,7 +401,7 @@ export function listView(state) {
         <label for="c-${c.id}">${esc(c.name)}</label>
         ${tab === "shared" && S.mode === "synced" ? (who ? `<button type="button" class="who" data-act="unclaim" data-id="${c.id}" aria-label="${esc(who.display_name)} 帶，點一下取消">${avatar(who, 24)}<span>${esc(who.display_name)}</span></button>`
           : `<button type="button" class="claim" data-act="claim" data-id="${c.id}">我帶</button>`) : ""}
-        <button type="button" class="del" data-act="del-item" data-id="${c.id}" aria-label="刪除 ${esc(c.name)}">${icon("close")}</button>
+        ${editMode ? `<button type="button" class="del" data-act="del-item" data-id="${c.id}" aria-label="刪除 ${esc(c.name)}">${icon("close")}</button>` : ""}
       </li>`; }).join("")}</ul></section>`).join("")}
     ${!items.length ? `<div class="empty"><h3>${tab === "mine" ? "列出你自己要帶的東西" : "列出大家要準備的東西"}</h3><p>${tab === "mine" ? "只有你看得到。" : "誰要帶什麼，按「我帶」認領。"}</p></div>` : ""}
     <form class="add-item" data-act="add-item">
@@ -436,11 +440,11 @@ export function memoriesView(state) {
         return `<article class="mem">
           ${n ? `<div class="ph-grid n${Math.min(n, 3)}">${m.photos.map(p => `<button type="button" class="ph" data-act="photo" data-path="${esc(p)}" aria-label="看大圖"><img data-photo="${esc(p)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
           ${m.note ? `<div class="note">${avatar(a, 30)}<p>${esc(m.note)}</p></div>` : `<div class="note bare">${avatar(a, 24)}<span>${esc(a?.display_name || "")}</span></div>`}
-          ${mine ? `<button type="button" class="mem-del" data-act="del-mem" data-id="${m.id}" aria-label="刪除這則回憶">${icon("trash")}</button>` : ""}
+          ${mine && editMode ? `<button type="button" class="mem-del" data-act="del-mem" data-id="${m.id}" aria-label="刪除這則回憶">${icon("trash")}</button>` : ""}
         </article>`; }).join("")}</section>`).join("");
   }
   const fab = S.mode === "synced" ? `<button type="button" class="fab" data-act="new-mem" data-date="${date}">${icon("plus", "currentColor", 2.2)}加照片或心得</button>` : "";
-  return topbar("回憶", S.mode === "local" ? "" : `${S.members.length} 人・${photoCount} 張照片`) + `<main class="page">${body}</main>${fab}`;
+  return topbar("回憶", S.mode === "local" ? "" : `${S.members.length} 人・${photoCount} 張照片`, S.mode === "synced" && S.memories.some(m => m.author_id === myId())) + `<main class="page">${body}</main>${fab}`;
 }
 
 /* ---------- sheets ---------- */

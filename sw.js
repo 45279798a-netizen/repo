@@ -1,5 +1,5 @@
 // Offline cache so the app still opens with weak signal in Jeju.
-const CACHE = "jeju-trip-v4";
+const CACHE = "jeju-trip-v5";
 const FILES = ["./", "index.html", "data/itinerary.json", "manifest.json", "icon.svg",
   "js/main.js", "js/store.js", "js/views.js", "js/util.js", "js/art.js", "js/config.js"];
 
