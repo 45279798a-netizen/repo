@@ -54,6 +54,15 @@ export function newId() {
   return uuidFrom(Math.random() + ":" + Date.now());
 }
 
+/* Rough drive time: straight line x 1.35 road factor at 42 km/h, plus 5 min to park. */
+export function driveEstimate(a, b) {
+  const R = 6371, rad = Math.PI / 180;
+  const dLa = (b[0] - a[0]) * rad, dLo = (b[1] - a[1]) * rad;
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLo / 2) ** 2;
+  const km = 2 * R * Math.asin(Math.sqrt(h)) * 1.35;
+  return Math.max(1, Math.round(km / 42 * 60 + 5));
+}
+
 export function debounce(fn, ms) {
   let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }

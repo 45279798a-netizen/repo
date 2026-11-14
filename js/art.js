@@ -78,7 +78,8 @@ export function makeProjection(bounds, width, pad = 24) {
   const s = (width - pad * 2) / spanX;
   const height = Math.round(spanY * s + pad * 2);
   const px = (lng, lat) => [pad + (lng - bounds.lng0) * KX * s, pad + (bounds.lat1 - lat) * s];
-  return { px, width, height, scale: s };
+  const ll = (x, y) => [bounds.lat1 - (y - pad) / s, (x - pad) / (KX * s) + bounds.lng0];
+  return { px, ll, width, height, scale: s };
 }
 export function coastPath(px) {
   const p = COAST.map(([a, b]) => px(a, b));

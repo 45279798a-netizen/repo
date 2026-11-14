@@ -2,7 +2,7 @@
 import * as store from "./store.js";
 import { S } from "./store.js";
 import * as V from "./views.js";
-import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId } from "./util.js";
+import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate } from "./util.js";
 
 const app = document.getElementById("app");
 const state = {
@@ -138,10 +138,33 @@ document.addEventListener("click", e => {
       pendingJump = id;
       if (state.tab === "plan") { e.preventDefault(); render(); }
       break;
-    case "edit-stop": { const s = S.stops.find(x => x.id === id); if (s) openSheet(V.stopSheet(s, false)); break; }
+    case "edit-stop": { const s = S.stops.find(x => x.id === id); if (s) { editingStop = s; pickPoint = null; V.resetPicker(s); openSheet(V.stopSheet(s, false)); } break; }
     case "new-stop": {
       const tpl = store.newStopTemplate(el.dataset.date, el.dataset.plan);
-      pendingNew = tpl; openSheet(V.stopSheet(tpl, true)); break;
+      pendingNew = tpl; editingStop = tpl; pickPoint = null; V.resetPicker(tpl); openSheet(V.stopSheet(tpl, true)); break;
+    }
+    case "pick-zoom": V.zoomPicker(el.dataset.dir, currentPick()); redrawPicker(); break;
+    case "pick-clear": setPick(null); break;
+    case "pick-here":
+      if (!navigator.geolocation) { toast("這個瀏覽器不能取得位置"); break; }
+      el.textContent = "定位中…";
+      navigator.geolocation.getCurrentPosition(
+        pos => { el.textContent = "我的位置"; const p = { lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5) }; V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p); },
+        () => { el.textContent = "我的位置"; toast("拿不到位置，請允許定位或改在地圖上點"); },
+        { enableHighAccuracy: true, timeout: 10000 });
+      break;
+    case "copy-to-rain": {
+      const date = el.dataset.date;
+      const sun = V.stopsFor(date, "sun");
+      const copies = sun.map(s => ({ ...s, id: newId(), plan: "rain", extra: { ...(s.extra || {}) } }));
+      guard(async () => { await store.saveStops(copies); V.setPlan(date, "rain"); ls.set("jeju-plan", V.plansState()); toast("複製好了，改掉要換的站就行"); render(); });
+      break;
+    }
+    case "edit-info": openSheet(V.infoEditSheet()); break;
+    case "show-driver": {
+      const st = (S.info?.stays || [])[Number(el.dataset.idx)];
+      if (st) openSheet(V.driverSheet(st.name, st.address_ko));
+      break;
     }
     case "move-stop": guard(async () => { await store.moveStop(id, Number(el.dataset.dir)); closeSheet(); pendingJump = id; render(); }); break;
     case "del-stop":
@@ -179,6 +202,60 @@ document.addEventListener("click", e => {
 });
 
 let pendingNew = null;
+let editingStop = null, pickPoint = null;
+function currentPick() {
+  const f = sheetBody.querySelector("form[data-act=save-stop]");
+  if (!f) return null;
+  const lat = parseFloat(f.lat.value), lng = parseFloat(f.lng.value);
+  return isNaN(lat) ? null : { lat, lng };
+}
+function setPick(p) {
+  const f = sheetBody.querySelector("form[data-act=save-stop]");
+  if (!f) return;
+  f.lat.value = p ? p.lat : ""; f.lng.value = p ? p.lng : "";
+  pickPoint = p;
+  redrawPicker();
+}
+function redrawPicker() {
+  const box = document.getElementById("picker");
+  if (box && editingStop) box.innerHTML = V.pickerHtml({ ...editingStop, lat: null, lng: null }, currentPick());
+}
+document.addEventListener("click", e => {
+  const svg = e.target.closest("#picker svg");
+  if (!svg) return;
+  const r = svg.getBoundingClientRect();
+  const P = V.pickerProjection();
+  const x = (e.clientX - r.left) / r.width * P.width, y = (e.clientY - r.top) / r.height * P.height;
+  const [lat, lng] = P.ll(x, y);
+  setPick({ lat: +lat.toFixed(5), lng: +lng.toFixed(5) });
+});
+
+/* Keep new stops in time order and refresh estimated drive times. */
+function placeAndEstimate(stop, isNew) {
+  const list = V.stopsFor(stop.day, stop.plan).filter(s => s.id !== stop.id);
+  let idx = list.length;
+  if (isNew && stop.time) {
+    const i = list.findIndex(s => s.time && s.time > stop.time);
+    if (i >= 0) idx = i;
+  } else if (!isNew) {
+    idx = V.stopsFor(stop.day, stop.plan).findIndex(s => s.id === stop.id);
+  }
+  list.splice(idx, 0, stop);
+  const changed = new Set([stop]);
+  const force = new Set();
+  if (isNew && stop.lat != null) { const nxt = list.slice(idx + 1).find(s => s.lat != null); if (nxt) force.add(nxt.id); }
+  list.forEach((s, k) => { if (s.position !== k * 10) { s.position = k * 10; changed.add(s); } });
+  let prev = null;
+  list.forEach(s => {
+    const here = s.lat != null ? [s.lat, s.lng] : null;
+    if (here && prev && (s.drive_min == null || s.extra?.drive_auto || force.has(s.id))) {
+      const est = driveEstimate(prev, here);
+      if (s.drive_min !== est) { s.drive_min = est; s.extra = { ...(s.extra || {}), drive_auto: true }; changed.add(s); }
+    }
+    if (here) prev = here;
+  });
+  return [...changed];
+}
 function confirmLeave(el) {
   if (el.dataset.confirm === "1") return true;
   el.dataset.confirm = "1"; el.textContent = "確定登出？再按一次";
@@ -216,17 +293,44 @@ document.addEventListener("submit", e => {
     const id = form.dataset.id;
     const base = S.stops.find(x => x.id === id) || pendingNew;
     const num = k => { const v = String(fd.get(k) ?? "").trim(); return v === "" ? null : Number(v); };
+    const isNew = !S.stops.some(x => x.id === id);
+    const lat = num("lat"), lng = num("lng");
+    const typedDrive = num("drive_min");
+    const extra = { ...(base.extra || {}) };
+    if (lat !== base.lat || lng !== base.lng) extra.approx = lat != null;
+    if (typedDrive != null && typedDrive !== base.drive_min) extra.drive_auto = false;
+    if (typedDrive == null) extra.drive_auto = true;
     const stop = {
       ...base, time: String(fd.get("time") || ""), category: String(fd.get("category")), name: String(fd.get("name")).trim(),
-      name_ko: String(fd.get("name_ko") || "").trim() || null, duration_min: num("duration_min"), drive_min: num("drive_min"),
+      name_ko: String(fd.get("name_ko") || "").trim() || null, duration_min: num("duration_min"), drive_min: typedDrive,
+      lat, lng, extra,
       tips: String(fd.get("tips") || "").split("\n").map(t => t.trim()).filter(Boolean)
     };
     if (!stop.name) return;
     busy(true);
-    guard(async () => { await store.saveStop(stop); pendingNew = null; closeSheet(); pendingJump = stop.id; render(); });
+    const changed = placeAndEstimate({ ...stop }, isNew).map(s => s.id === stop.id ? s : { ...s });
+    guard(async () => { await store.saveStops(changed); pendingNew = null; editingStop = null; closeSheet(); pendingJump = stop.id; render(); });
   }
   if (a === "save-day") {
-    guard(async () => { await store.saveDay(form.dataset.date, { title: String(fd.get("title")).trim(), tagline: String(fd.get("tagline")).trim(), theme: String(fd.get("theme")) }); closeSheet(); });
+    guard(async () => { await store.saveDay(form.dataset.date, { title: String(fd.get("title")).trim(), tagline: String(fd.get("tagline")).trim(), theme: String(fd.get("theme")), rain_note: String(fd.get("rain_note") || "").trim() }); closeSheet(); });
+  }
+  if (a === "save-info") {
+    const g = k => String(fd.get(k) || "").trim();
+    const stays = [];
+    for (let i = 0; i < Number(form.dataset.stays); i++) {
+      const name = g(`stay_name_${i}`);
+      if (name) stays.push({ name, check_in: g(`stay_in_${i}`), check_out: g(`stay_out_${i}`), address_ko: g(`stay_addr_${i}`), phone: g(`stay_phone_${i}`), note: g(`stay_note_${i}`) });
+    }
+    stays.sort((a, b) => (a.check_in || "9").localeCompare(b.check_in || "9"));
+    const bookings = [];
+    for (let i = 0; i < Number(form.dataset.bookings); i++) {
+      const label = g(`b_label_${i}`), code = g(`b_code_${i}`);
+      if (label) bookings.push({ label, code });
+    }
+    const rental = {};
+    ["company", "booking", "pickup_time", "pickup_place", "return_time", "return_place", "phone", "note"].forEach(k => { const v = g(`r_${k}`); if (v) rental[k] = v; });
+    busy(true);
+    guard(async () => { await store.saveTripInfo({ ...(S.info || {}), stays, rental, bookings }); openSheet(V.infoSheet()); toast("存好了"); });
   }
   if (a === "add-item") {
     const name = String(fd.get("name") || "").trim();

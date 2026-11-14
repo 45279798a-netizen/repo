@@ -97,6 +97,14 @@ create table if not exists public.memories (
 );
 create index if not exists memories_trip on public.memories (trip_id, day, created_at);
 
+-- 住宿、租車、訂位代號等旅行資訊（一個旅行一筆）
+create table if not exists public.trip_info (
+  trip_id uuid primary key references public.trips(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_by uuid references auth.users(id) on delete set null default auth.uid(),
+  updated_at timestamptz not null default now()
+);
+
 -- 記錄是誰最後改的
 create or replace function private.touch() returns trigger
 language plpgsql set search_path = '' as $$
@@ -110,6 +118,8 @@ drop trigger if exists touch_days on public.days;
 create trigger touch_days before insert or update on public.days for each row execute function private.touch();
 drop trigger if exists touch_stops on public.stops;
 create trigger touch_stops before insert or update on public.stops for each row execute function private.touch();
+drop trigger if exists touch_trip_info on public.trip_info;
+create trigger touch_trip_info before insert or update on public.trip_info for each row execute function private.touch();
 drop trigger if exists touch_checklist on public.checklist_items;
 create trigger touch_checklist before insert or update on public.checklist_items for each row execute function private.touch();
 
@@ -162,6 +172,7 @@ alter table public.days enable row level security;
 alter table public.stops enable row level security;
 alter table public.checklist_items enable row level security;
 alter table public.memories enable row level security;
+alter table public.trip_info enable row level security;
 
 drop policy if exists "members read trip" on public.trips;
 create policy "members read trip" on public.trips for select to authenticated
@@ -180,6 +191,10 @@ create policy "members edit days" on public.days for all to authenticated
 
 drop policy if exists "members edit stops" on public.stops;
 create policy "members edit stops" on public.stops for all to authenticated
+  using (public.is_member(trip_id)) with check (public.is_member(trip_id));
+
+drop policy if exists "members edit trip info" on public.trip_info;
+create policy "members edit trip info" on public.trip_info for all to authenticated
   using (public.is_member(trip_id)) with check (public.is_member(trip_id));
 
 drop policy if exists "checklist read" on public.checklist_items;
@@ -246,7 +261,7 @@ do $$
 declare
   tbl text;
 begin
-  foreach tbl in array array['members', 'days', 'stops', 'checklist_items', 'memories'] loop
+  foreach tbl in array array['members', 'days', 'stops', 'checklist_items', 'memories', 'trip_info'] loop
     if not exists (
       select 1 from pg_publication_tables
        where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = tbl

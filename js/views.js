@@ -157,6 +157,7 @@ export function todayView() {
           <b>${esc(s.time || "")}</b><i style="background:var(--c-${s.category})"></i>
           <span><strong>${esc(s.name)}</strong><small${s.category === "sunset" ? ' class="sunset"' : ""}>${s.category === "sunset" ? `日落 ${hhmm(sun.set)}・${hhmm(sun.set - 20)} 前到` : `${CAT[s.category] || ""}${s.duration_min ? `・約 ${s.duration_min} 分` : ""}`}</small></span></a></li>`).join("")}</ul>`;
     }
+    body += stayCard(day.date);
   }
   if (getDemoTime()) body += `<button class="link-btn" type="button" data-act="demo-off">結束預覽，回到現在</button>`;
   return topbar(title, sub) + `<main class="page">${body}</main>`;
@@ -166,7 +167,7 @@ function prevDate(date) { const d = new Date(date + "T12:00:00Z"); d.setUTCDate(
 /* ---------- 行程 ---------- */
 let planChoice = {};
 export function setPlan(date, p) { planChoice[date] = p; }
-export function currentPlan(date) { return planChoice[date] === "rain" && hasRain(date) ? "rain" : "sun"; }
+export function currentPlan(date) { return planChoice[date] === "rain" && (hasRain(date) || editable()) ? "rain" : "sun"; }
 export function initPlans(saved) { planChoice = saved || {}; }
 export function plansState() { return planChoice; }
 
@@ -202,7 +203,7 @@ export function planView(date) {
         <h2>${esc(day.title || "還沒取名")}</h2><p>${esc(day.tagline || "")}</p>
         ${places.length ? `<p class="stats">${places.length} 站・${esc(list[0]?.time || "")} 出發</p>` : ""}</div></section>`;
   html += `<div id="wx-slot" data-date="${day.date}">${weatherCard(day, cachedWeather(day.date))}</div>`;
-  if (hasRain(day.date)) {
+  if (hasRain(day.date) || editable()) {
     const w = cachedWeather(day.date);
     const bad = w && ((w.rain ?? 0) >= 60 || (w.wind ?? 0) >= 12);
     html += `<section class="plan-sw" aria-label="選擇行程">
@@ -210,7 +211,9 @@ export function planView(date) {
         <button type="button" data-act="plan" data-plan="sun" aria-pressed="${plan === "sun"}">晴天行程</button>
         <button type="button" data-act="plan" data-plan="rain" aria-pressed="${plan === "rain"}">雨天備案</button></div>
       ${bad && plan === "sun" ? `<p class="plan-alert">預報${(w.rain ?? 0) >= 60 ? `降雨機率 ${w.rain}%` : `風速 ${Math.round(w.wind)} m/s`}，建議切到雨天備案</p>` : ""}
-      ${plan === "rain" && day.rain_note ? `<p class="plan-note">${esc(day.rain_note)}</p>` : ""}</section>`;
+      ${plan === "rain" && day.rain_note ? `<p class="plan-note">${esc(day.rain_note)}</p>` : ""}
+      ${plan === "rain" && !hasRain(day.date) ? `<p class="plan-note">這天還沒有雨天備案。可以從晴天行程複製一份再改，或一站一站新增。</p>
+        <button class="btn wide" type="button" data-act="copy-to-rain" data-date="${day.date}">複製晴天行程當作雨天備案</button>` : ""}</section>`;
   }
   if (list.some(s => s.lat != null)) html += dayMap(day, list, nextIdx);
   html += `<div class="section-h"><h3>行程</h3><span>${places.length} 站</span></div><ol class="timeline">`;
@@ -230,7 +233,7 @@ export function planView(date) {
   html += `</ol>`;
   if (!list.length && !arr) html += `<div class="empty"><h3>這天還沒有行程</h3><p>${editable() ? "按下面的按鈕新增第一站。" : "加入旅行後就能新增。"}</p></div>`;
   if (editable()) html += `<button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>`;
-  html += infoFooter() + `</main>`;
+  html += stayCard(day.date) + infoFooter() + `</main>`;
   return html;
 }
 
@@ -471,16 +474,69 @@ export function meSheet() {
 
 export function infoSheet() {
   const t = S.cfg || {};
+  const info = S.info || {};
+  const synced = S.mode === "synced";
   const f = (t.flights || []).map(x => `<li><b>${md(x.date)}（${weekday(x.date)}）</b>${esc(x.airline)} ${esc(x.flight)}<br>${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</li>`).join("");
+  const stays = (info.stays || []).map((st, i) => `<li class="info-item">
+      <div><b class="nm">${esc(st.name)}</b>${st.check_in ? `<small>${md(st.check_in)} 入住${st.check_out ? `・${md(st.check_out)} 退房` : ""}</small>` : ""}</div>
+      ${st.address_ko ? `<p lang="ko">${esc(st.address_ko)}</p>` : ""}${st.phone ? `<p>電話 ${esc(st.phone)}</p>` : ""}${st.note ? `<p class="muted">${esc(st.note)}</p>` : ""}
+      <div class="actions"><a class="btn primary" href="https://map.kakao.com/link/search/${encodeURIComponent(st.address_ko || st.name)}" target="_blank" rel="noopener">${icon("nav")}導航</a>
+      ${st.address_ko ? `<button class="btn" type="button" data-act="show-driver" data-kind="stay" data-idx="${i}">給司機看</button>` : ""}</div></li>`).join("");
+  const r = info.rental || {};
+  const rentalRows = [["公司", r.company], ["訂位代號", r.booking], ["取車", [r.pickup_time, r.pickup_place].filter(Boolean).join("・")], ["還車", [r.return_time, r.return_place].filter(Boolean).join("・")], ["電話", r.phone], ["備註", r.note]].filter(x => x[1]);
+  const bookings = (info.bookings || []).filter(b => b.label || b.code);
   const phrases = [["這個請給我", "이거 주세요", "i-geo ju-se-yo"], ["請結帳", "계산해 주세요", "gye-san-hae ju-se-yo"], ["可以外帶嗎？", "포장 돼요?", "po-jang dwae-yo"],
     ["請不要太辣", "안 맵게 해 주세요", "an maep-ge hae ju-se-yo"], ["廁所在哪裡？", "화장실 어디예요?", "hwa-jang-sil eo-di-ye-yo"], ["謝謝", "감사합니다", "gam-sa-ham-ni-da"]];
   return `<h2>旅行資訊</h2>
+    ${synced ? `<button class="btn wide" type="button" data-act="edit-info">${icon("edit")}編輯住宿、租車和訂位代號</button>` : ""}
+    <h3>住宿</h3>${stays ? `<ul class="info-list rich">${stays}</ul>` : `<p>${esc(t.lodging?.area || "待補")}</p><p class="muted small">${synced ? "按上面的「編輯」加入住宿和韓文地址，就能直接導航、給司機看。" : "加入旅行後可以填住宿和韓文地址。"}</p>`}
+    <h3>租車</h3>${rentalRows.length ? `<dl class="kv">${rentalRows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}
+      <p class="muted small">要帶：${esc((t.transport?.docs || []).join("、"))}。還車前要加滿油。</p>
+    ${bookings.length ? `<h3>訂位代號</h3><dl class="kv">${bookings.map(b => `<dt>${esc(b.label || "")}</dt><dd><b class="code">${esc(b.code || "")}</b></dd>`).join("")}</dl>` : ""}
     <h3>航班</h3><ul class="info-list">${f}</ul>
-    <h3>住宿</h3><p>${esc(t.lodging?.area || "待補")}</p><p class="muted small">有韓文地址後可以加在這裡，給計程車司機看。</p>
-    <h3>租車</h3><p>${esc((t.transport?.docs || []).join("、"))}</p><p class="muted small">還車前要加滿油。</p>
     <h3>緊急電話</h3><ul class="info-list">
       <li><b>112</b> 警察</li><li><b>119</b> 火警、救護車</li><li><b>1330</b> 韓國觀光公社旅遊熱線（有中文）</li></ul>
     <h3>實用韓文</h3><ul class="phrases">${phrases.map(([zh, ko, ro]) => `<li><span>${zh}</span><b lang="ko">${ko}</b><small>${ro}</small></li>`).join("")}</ul>`;
+}
+
+export function infoEditSheet() {
+  const info = S.info || {};
+  const stays = [...(info.stays || []), {}];
+  const dates = S.days.map(d => d.date);
+  const last = dates.at(-1);
+  const allDates = [...dates];
+  if (last) { const d = new Date(last + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); allDates.push(d.toISOString().slice(0, 10)); }
+  const dateOpts = (v) => `<option value="">—</option>` + allDates.map(d => `<option value="${d}"${v === d ? " selected" : ""}>${md(d)}（${weekday(d)}）</option>`).join("");
+  const r = info.rental || {};
+  const bookings = [...(info.bookings || []), {}, {}];
+  return `<h2>編輯旅行資訊</h2>
+    <form data-act="save-info" class="form" data-stays="${stays.length}" data-bookings="${bookings.length}">
+      <h3>住宿</h3>
+      ${stays.map((st, i) => `<div class="sub-form">
+        <label>名稱<input name="stay_name_${i}" type="text" maxlength="60" value="${esc(st.name || "")}" placeholder="${i === stays.length - 1 ? "新增一筆住宿" : ""}"></label>
+        <div class="row2"><label>入住<select name="stay_in_${i}">${dateOpts(st.check_in)}</select></label>
+          <label>退房<select name="stay_out_${i}">${dateOpts(st.check_out)}</select></label></div>
+        <label>韓文地址（給司機看、導航用）<input name="stay_addr_${i}" type="text" maxlength="120" lang="ko" value="${esc(st.address_ko || "")}" placeholder="제주특별자치도 제주시 …"></label>
+        <div class="row2"><label>電話<input name="stay_phone_${i}" type="tel" maxlength="30" value="${esc(st.phone || "")}"></label>
+          <label>備註<input name="stay_note_${i}" type="text" maxlength="60" value="${esc(st.note || "")}" placeholder="15:00 入住"></label></div>
+      </div>`).join("")}
+      <h3>租車</h3>
+      <div class="sub-form">
+        <div class="row2"><label>公司<input name="r_company" type="text" maxlength="40" value="${esc(r.company || "")}"></label>
+          <label>訂位代號<input name="r_booking" type="text" maxlength="40" value="${esc(r.booking || "")}"></label></div>
+        <div class="row2"><label>取車時間<input name="r_pickup_time" type="text" maxlength="30" value="${esc(r.pickup_time || "")}" placeholder="11/26 07:00"></label>
+          <label>取車地點<input name="r_pickup_place" type="text" maxlength="60" value="${esc(r.pickup_place || "")}" placeholder="機場租車大樓"></label></div>
+        <div class="row2"><label>還車時間<input name="r_return_time" type="text" maxlength="30" value="${esc(r.return_time || "")}" placeholder="11/29 18:05"></label>
+          <label>還車地點<input name="r_return_place" type="text" maxlength="60" value="${esc(r.return_place || "")}"></label></div>
+        <div class="row2"><label>電話<input name="r_phone" type="tel" maxlength="30" value="${esc(r.phone || "")}"></label>
+          <label>備註<input name="r_note" type="text" maxlength="60" value="${esc(r.note || "")}"></label></div>
+      </div>
+      <h3>訂位代號</h3>
+      ${bookings.map((b, i) => `<div class="row2"><label>項目<input name="b_label_${i}" type="text" maxlength="30" value="${esc(b.label || "")}" placeholder="機票（去程）"></label>
+        <label>代號<input name="b_code_${i}" type="text" maxlength="40" value="${esc(b.code || "")}"></label></div>`).join("")}
+      <p class="muted small">名稱或項目清空就會刪掉那一筆。這些資料只有加入旅行的人看得到。</p>
+      <button class="btn primary wide" type="submit">儲存</button>
+    </form>`;
 }
 
 export function stopSheet(s, isNew) {
@@ -492,7 +548,17 @@ export function stopSheet(s, isNew) {
       <label>名稱<input name="name" type="text" required maxlength="80" value="${esc(s.name)}" placeholder="城山日出峰"></label>
       <label>韓文名稱（導航用）<input name="name_ko" type="text" maxlength="80" value="${esc(s.name_ko || "")}" placeholder="성산일출봉" lang="ko"></label>
       <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
-        <label>從上一站開車（分鐘）<input name="drive_min" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
+        <label>從上一站開車（分鐘）<input name="drive_min" placeholder="放了位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
+      <fieldset class="loc"><legend>位置</legend>
+        <p class="muted small">在地圖上點一下放位置，地圖和車程就會跟著更新。導航會用韓文名稱搜尋，比較準。</p>
+        <div id="picker" class="picker">${pickerHtml(s)}</div>
+        <div class="row-btns">
+          <button class="btn" type="button" data-act="pick-zoom" data-dir="in">放大</button>
+          <button class="btn" type="button" data-act="pick-zoom" data-dir="out">縮小</button>
+          <button class="btn" type="button" data-act="pick-here">我的位置</button>
+          <button class="btn" type="button" data-act="pick-clear">清除</button></div>
+        <input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
+      </fieldset>
       <label>小提醒（一行一個）<textarea name="tips" rows="3" maxlength="400">${esc((s.tips || []).join("\n"))}</textarea></label>
       ${s.options?.length ? `<p class="muted small">這站的餐廳選項（${s.options.length} 家）會保留，這裡不能改。</p>` : ""}
       <button class="btn primary wide" type="submit">儲存</button>
@@ -508,6 +574,7 @@ export function daySheet(d) {
     <form data-act="save-day" data-date="${d.date}" class="form">
       <label>這天叫什麼<input name="title" type="text" maxlength="12" value="${esc(d.title || "")}" placeholder="東部"></label>
       <label>一句話介紹<input name="tagline" type="text" maxlength="40" value="${esc(d.tagline || "")}" placeholder="日出、海女和牛島"></label>
+      <label>雨天備案說明（選填）<input name="rain_note" type="text" maxlength="60" value="${esc(d.rain_note || "")}" placeholder="下雨改去美術館，晚餐照舊"></label>
       <label>封面插畫<select name="theme">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}"${d.theme === k ? " selected" : ""}>${v}</option>`).join("")}</select></label>
       <button class="btn primary wide" type="submit">儲存</button></form>`;
 }
@@ -521,4 +588,55 @@ export function memSheet(date) {
       <label>心得<textarea name="note" rows="3" maxlength="500" placeholder="橘子超甜，摘了快 2 公斤"></textarea></label>
       <p class="form-err" role="alert" hidden></p>
       <button class="btn primary wide" type="submit">放進回憶</button></form>`;
+}
+
+/* ---------- location picker ---------- */
+const ISLAND = { lat: 33.38, lng: 126.56, span: 0.86 };
+let pickView = null;
+export function resetPicker(s) {
+  pickView = s.lat != null ? { lat: s.lat, lng: s.lng, span: 0.22 } : { ...ISLAND };
+}
+export function zoomPicker(dir, point) {
+  if (!pickView) pickView = { ...ISLAND };
+  const c = point || pickView;
+  const span = Math.min(ISLAND.span, Math.max(0.04, pickView.span * (dir === "in" ? 0.5 : 2)));
+  pickView = span >= ISLAND.span ? { ...ISLAND } : { lat: c.lat, lng: c.lng, span };
+}
+export function pickerProjection() {
+  const v = pickView || ISLAND;
+  const latSpan = v.span * 0.835 * 0.62;
+  return makeProjection({ lng0: v.lng - v.span / 2, lng1: v.lng + v.span / 2, lat0: v.lat - latSpan / 2, lat1: v.lat + latSpan / 2 }, 520, 0);
+}
+export function pickerHtml(s, point) {
+  if (!pickView) resetPicker(s);
+  const P = pickerProjection();
+  const p = point || (s.lat != null ? { lat: s.lat, lng: s.lng } : null);
+  const others = S.stops.filter(x => x.day === s.day && x.plan === s.plan && x.id !== s.id && x.lat != null && isPlace(x));
+  const big = pickView.span < 0.3;
+  const pin = p ? (() => { const [x, y] = P.px(p.lng, p.lat); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><path d="M0 0c-6-9-12-14-12-22a12 12 0 0 1 24 0c0 8-6 13-12 22z" fill="#C25F0C" stroke="#fff" stroke-width="2.5"/><circle cy="-22" r="4.5" fill="#fff"/></g>`; })() : "";
+  return `<svg viewBox="0 0 ${P.width} ${P.height}" role="img" aria-label="點一下地圖放位置">
+    <rect width="${P.width}" height="${P.height}" fill="#D3E2E5"/>
+    <path d="${coastPath(P.px)}" fill="#F3F5F1" stroke="#B7C7C6" stroke-width="1.5"/>
+    ${PLACE_LABELS.map(l => { const [x, y] = P.px(l.lng, l.lat); return `<text x="${x.toFixed(0)}" y="${(y + l.dy).toFixed(0)}" text-anchor="middle" font-size="${big ? 17 : 15}" fill="#5F676B">${l.t}</text>`; }).join("")}
+    ${others.map(o => { const [x, y] = P.px(o.lng, o.lat); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#2B3036" stroke="#fff" stroke-width="2"/>`; }).join("")}
+    ${pin}
+  </svg>${p ? "" : `<p class="picker-hint">點地圖放位置</p>`}`;
+}
+
+/* ---------- stays & trip info ---------- */
+export function stayFor(date) {
+  return (S.info?.stays || []).find(st => st.check_in && st.check_out && st.check_in <= date && date < st.check_out) || null;
+}
+function stayCard(date) {
+  const st = stayFor(date);
+  if (!st) return "";
+  const q = encodeURIComponent(st.address_ko || st.name);
+  return `<section class="card stay-card"><p class="muted small">今晚住</p><h3>${esc(st.name)}</h3>
+    ${st.address_ko ? `<p lang="ko">${esc(st.address_ko)}</p>` : ""}
+    <div class="actions"><a class="btn primary" href="https://map.kakao.com/link/search/${q}" target="_blank" rel="noopener">${icon("nav")}導航</a>
+      ${st.address_ko ? `<button class="btn" type="button" data-act="show-driver" data-kind="stay" data-idx="${S.info.stays.indexOf(st)}">給司機看</button>` : ""}</div></section>`;
+}
+export function driverSheet(name, address) {
+  return `<div class="driver"><p class="muted">請載我到這個地址</p><p class="driver-ko" lang="ko">이 주소로 가 주세요</p>
+    <b lang="ko">${esc(address)}</b>${name ? `<p class="driver-name">${esc(name)}</p>` : ""}</div>`;
 }

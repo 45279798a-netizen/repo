@@ -411,6 +411,30 @@
   .phrases span { font-size: 13px; color: var(--stone); }
   .phrases b { font-size: 18px; }
   .phrases small { font-size: 12px; color: var(--stone); }
+  .loc { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .loc legend { font-size: 13px; font-weight: 700; color: var(--stone); padding: 0; margin-bottom: 4px; }
+  .loc .muted { margin: 0; }
+  .picker { position: relative; border-radius: 14px; overflow: hidden; touch-action: manipulation; }
+  .picker svg { display: block; width: 100%; height: auto; cursor: crosshair; }
+  .picker-hint { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; background: rgba(43,48,54,.82); color: #fff; font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 999px; pointer-events: none; }
+  .loc .row-btns .btn { min-height: 38px; font-size: 13px; padding: 4px 8px; }
+  .sub-form { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: var(--mist); }
+  .sheet-panel .form h3 { margin: 10px 0 0; }
+  .stay-card h3 { margin: 0 0 2px; }
+  .stay-card .actions { margin-top: 8px; }
+  .info-list.rich { gap: 12px; }
+  .info-item { background: var(--mist); border-radius: 14px; padding: 10px 12px; }
+  .info-item .nm { font-family: var(--body); font-size: 16px; display: block; }
+  .info-item small { color: var(--stone); font-size: 12px; }
+  .info-item p { margin: 4px 0 0; font-size: 14px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0 0 6px; font-size: 15px; }
+  .kv dt { color: var(--stone); }
+  .kv dd { margin: 0; }
+  .code { font: 800 18px var(--num); letter-spacing: 1px; }
+  .driver { text-align: center; padding: 12px 0 8px; }
+  .driver-ko { font-size: 18px; margin: 4px 0 16px; }
+  .driver b { display: block; font-size: 30px; line-height: 1.4; word-break: keep-all; }
+  .driver-name { font-size: 18px; margin-top: 14px; color: var(--stone); }
   .toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; background: var(--basalt); color: #fff; padding: 10px 16px; border-radius: 14px; font-size: 14px; max-width: calc(100% - 32px); }
 
 </style>

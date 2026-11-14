@@ -11,6 +11,7 @@ export const S = {
   checklist: [],
   memories: [],
   members: [],
+  info: {},           // {stays:[], rental:{}, bookings:[]} shared trip info
   me: null,           // {id, display_name, color}
   mode: "local",      // local: not joined | synced | offline: joined but no network
   ready: false
@@ -92,7 +93,7 @@ function mergeDays(base, rows) {
 
 /* ---------- cache ---------- */
 function saveCache() {
-  ls.set("jeju-cache", { days: S.days, stops: S.stops, checklist: S.checklist, memories: S.memories, members: S.members, me: S.me, t: Date.now() });
+  ls.set("jeju-cache", { days: S.days, stops: S.stops, checklist: S.checklist, memories: S.memories, members: S.members, me: S.me, info: S.info, t: Date.now() });
 }
 function loadCache() { return ls.get("jeju-cache", null); }
 
@@ -195,6 +196,10 @@ async function fetchTable(t) {
     if (error) throw error;
     S._serverChecklist = data.length;
     S.checklist = data;
+  } else if (t === "trip_info") {
+    const { data, error } = await sb.from("trip_info").select("*").eq("trip_id", TRIP_ID).maybeSingle();
+    if (error) throw error;
+    S.info = data?.data || {};
   } else if (t === "memories") {
     const { data, error } = await sb.from("memories").select("*").eq("trip_id", TRIP_ID).order("created_at", { ascending: false });
     if (error) throw error;
@@ -202,7 +207,8 @@ async function fetchTable(t) {
   }
 }
 async function fetchAll() {
-  await Promise.all(["members", "days", "stops", "checklist_items", "memories"].map(fetchTable));
+  await Promise.all(["members", "days", "stops", "checklist_items", "memories", "trip_info"].map(t =>
+    fetchTable(t).catch(e => { if (t !== "trip_info") throw e; })));
 }
 async function seedIfEmpty() {
   let changed = false;
@@ -234,7 +240,7 @@ const refetchers = {};
 function subscribe() {
   if (!sb || channel) return;
   channel = sb.channel(`trip-${TRIP_ID}`);
-  ["members", "days", "stops", "checklist_items", "memories"].forEach(t => {
+  ["members", "days", "stops", "checklist_items", "memories", "trip_info"].forEach(t => {
     refetchers[t] = debounce(async () => {
       try { await fetchTable(t); saveCache(); emit(); } catch {}
     }, 400);
@@ -265,6 +271,17 @@ export async function saveStop(stop) {
   if (i >= 0) S.stops[i] = { ...S.stops[i], ...stop }; else S.stops.push(stop);
   emit();
   await run(sb.from("stops").upsert(toDbStop(i >= 0 ? S.stops[i] : stop)), "stops");
+}
+export async function saveStops(list) {
+  requireSync();
+  list.forEach(st => { const i = S.stops.findIndex(s => s.id === st.id); if (i >= 0) S.stops[i] = st; else S.stops.push(st); });
+  emit();
+  await run(sb.from("stops").upsert(list.map(toDbStop)), "stops");
+}
+export async function saveTripInfo(data) {
+  requireSync();
+  S.info = data; emit();
+  await run(sb.from("trip_info").upsert({ trip_id: TRIP_ID, data }), "trip_info");
 }
 export async function deleteStop(id) {
   requireSync();
