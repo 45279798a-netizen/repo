@@ -259,11 +259,19 @@
   .timeline li[data-sid] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .timeline.sorting .leg, .timeline.sorting .tips, .timeline.sorting .opts, .timeline.sorting .opt-h, .timeline.sorting .actions,
   .timeline.sorting .sunset-time, .timeline.sorting .warn, .timeline.sorting .edited-by, .timeline.sorting .edit-btn, .timeline.sorting .sub[lang] { display: none; }
-  .timeline.sorting li[data-sid] .card { padding-top: 10px; padding-bottom: 10px; }
-  .timeline.sorting li[data-sid] { margin-bottom: 8px; }
-  .timeline li.dragging { position: relative; z-index: 5; }
-  .timeline li.dragging .card { box-shadow: 0 12px 28px rgba(43,48,54,.25); transform: scale(1.02); background: #FFFBF6; }
-  .timeline li.dragging .time, .timeline li.dragging .rail { visibility: hidden; }
+  /* While dragging, every stop shrinks to one short row so a move is a short distance. */
+  .timeline.sorting .sub, .timeline.sorting .next-tag, .timeline.sorting .cat-ic, .timeline.sorting .stop.is-flight { display: none; }
+  .timeline.sorting li[data-sid] .card { padding: 0 44px 0 14px; margin-bottom: 6px; height: 48px; display: flex; align-items: center; background: var(--paper); }
+  .timeline.sorting li[data-sid] .card-head { display: block; padding: 0; min-width: 0; width: 100%; }
+  .timeline.sorting li[data-sid] h4 { margin: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .timeline.sorting li[data-sid] .time { padding-top: 16px; font-size: 14px; }
+  .timeline.sorting li[data-sid] .dot { margin-top: 13px; }
+  .timeline.sorting .stop.is-move .dot { margin-top: 17px; }
+  .timeline li.slot .card { background: transparent; outline: 2px dashed #C9CFCC; outline-offset: -2px; }
+  .timeline li.slot .card > *, .timeline li.slot .time, .timeline li.slot .dot { visibility: hidden; }
+  .timeline li.ghost { position: fixed; z-index: 50; margin: 0; pointer-events: none; }
+  .timeline li.ghost .time, .timeline li.ghost .rail { visibility: hidden; }
+  .timeline li.ghost .card { box-shadow: 0 10px 24px rgba(43,48,54,.25); background: #FFFBF6; outline: 2px solid var(--tangerine); }
   .avatar { display: inline-grid; place-items: center; border-radius: 50%; font-weight: 700; flex: 0 0 auto; }
 
   .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--paper); border-top: 1px solid #DCE3E2;

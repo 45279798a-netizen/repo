@@ -276,49 +276,49 @@ const HOLD = 400;
 function dragStart(li, y) {
   const tl = li.parentElement;
   tl.classList.add("sorting");
-  li.classList.add("dragging");
   // Cards collapse while sorting; keep the lifted one under the finger.
-  const after = li.getBoundingClientRect();
-  window.scrollBy(0, after.top + after.height / 2 - y);
+  const r0 = li.getBoundingClientRect();
+  window.scrollBy(0, r0.top + r0.height / 2 - y);
   const r = li.getBoundingClientRect();
-  drag = { li, tl, startY: r.top + r.height / 2, y, raf: 0, order: ids(tl) };
-  li.style.transform = `translateY(${y - drag.startY}px)`;
+  // A floating copy follows the finger; the real row stays in the list as the drop slot.
+  const ghost = li.cloneNode(true);
+  ghost.classList.add("ghost"); ghost.removeAttribute("id");
+  Object.assign(ghost.style, { left: r.left + "px", width: r.width + "px", top: r.top + "px" });
+  tl.appendChild(ghost);
+  li.classList.add("slot");
+  drag = { li, tl, ghost, y, off: y - r.top, raf: 0, order: ids(tl) };
   navigator.vibrate?.(15);
   const tick = () => {
     if (!drag) return;
     const edge = 90, vh = window.innerHeight;
     let d = 0;
-    if (drag.y < edge) d = -Math.ceil((edge - drag.y) / 6);
-    else if (drag.y > vh - edge - 84) d = Math.ceil((drag.y - (vh - edge - 84)) / 6);
-    d = Math.max(-14, Math.min(14, d));
-    if (d) { const b = window.scrollY; window.scrollBy(0, d); drag.startY -= window.scrollY - b; follow(); }
+    if (drag.y < edge) d = -Math.ceil((edge - drag.y) / 8);
+    else if (drag.y > vh - edge - 84) d = Math.ceil((drag.y - (vh - edge - 84)) / 8);
+    d = Math.max(-12, Math.min(12, d));
+    if (d) { window.scrollBy(0, d); follow(); }
     drag.raf = requestAnimationFrame(tick);
   };
   drag.raf = requestAnimationFrame(tick);
 }
-const ids = tl => [...tl.querySelectorAll("li[data-sid]")].map(x => x.dataset.sid);
-const sib = (el, dir) => { let x = el[dir]; while (x && !x.dataset.sid) { if (x.classList.contains("is-flight")) return null; x = x[dir]; } return x; };
+const rows = tl => [...tl.querySelectorAll("li[data-sid]:not(.ghost)")];
+const ids = tl => rows(tl).map(x => x.dataset.sid);
 function follow() {
-  const { li, tl } = drag;
-  li.style.transform = `translateY(${drag.y - drag.startY}px)`;
-  const r = li.getBoundingClientRect(), mid = r.top + r.height / 2;
-  const next = sib(li, "nextElementSibling"), prev = sib(li, "previousElementSibling");
-  if (next) { const n = next.getBoundingClientRect(); if (mid > n.top + n.height / 2) { const t0 = li.getBoundingClientRect().top - (drag.y - drag.startY); tl.insertBefore(li, next.nextSibling); shift(t0); return; } }
-  if (prev) { const p = prev.getBoundingClientRect(); if (mid < p.top + p.height / 2) { const t0 = li.getBoundingClientRect().top - (drag.y - drag.startY); tl.insertBefore(li, prev); shift(t0); } }
-}
-function shift(oldTop) {
-  // The row moved in the DOM; re-base so it stays under the finger.
-  drag.li.style.transform = "";
-  const newTop = drag.li.getBoundingClientRect().top;
-  drag.startY += newTop - oldTop;
-  drag.li.style.transform = `translateY(${drag.y - drag.startY}px)`;
+  const { li, tl, ghost } = drag;
+  ghost.style.top = (drag.y - drag.off) + "px";
+  // Drop slot = before the first other row whose middle is below the finger.
+  const others = rows(tl).filter(x => x !== li);
+  const target = others.find(x => { const r = x.getBoundingClientRect(); return drag.y < r.top + r.height / 2; });
+  const want = target ? others.indexOf(target) : others.length;
+  if (want === rows(tl).indexOf(li) || !others.length) return;
+  tl.insertBefore(li, target || others[others.length - 1].nextSibling);
   navigator.vibrate?.(8);
 }
 function dragEnd() {
   if (!drag) return;
   cancelAnimationFrame(drag.raf);
-  const { li, tl, order } = drag;
-  li.classList.remove("dragging"); li.style.transform = "";
+  const { li, tl, ghost, order } = drag;
+  ghost.remove();
+  li.classList.remove("slot");
   tl.classList.remove("sorting");
   const now = ids(tl);
   drag = null;

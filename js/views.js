@@ -333,7 +333,7 @@ function dayMap(day, list, nextIdx) {
   </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
 }
 
-export const APP_VERSION = "12.1";
+export const APP_VERSION = "12.3";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
