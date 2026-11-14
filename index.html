@@ -7,7 +7,11 @@
 <title>濟州 11/26–29</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="濟州">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -218,7 +222,8 @@
   }
 
   /* ---------- shell ---------- */
-  body { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  body { padding-top: env(safe-area-inset-top); padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  @media (display-mode: standalone) { nav.days { top: env(safe-area-inset-top); } }
   body.sheet-open { overflow: hidden; }
   .page { max-width: 560px; margin: 0 auto; padding: 0 16px 40px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
