@@ -3,7 +3,7 @@ import { S, memberById, myId } from "./store.js";
 import { ART, makeProjection, coastPath, PLACE_LABELS } from "./art.js";
 import {
   esc, toMin, hhmm, md, weekday, wdNum, kstNow, sunTimes, wmo, wxIcon, wxAdvice, cachedWeather,
-  icon, CAT, CAT_ORDER, getDemoTime, WEEK
+  icon, CAT, CAT_GROUPS, FOOD_CATS, getDemoTime, WEEK
 } from "./util.js";
 
 export const DAY_COLORS = ["#B4547E", "#4E8A5B", "#C25F0C", "#2F64A8", "#6B8A2E", "#8A5A2E"];
@@ -322,7 +322,7 @@ export function mapView(state) {
   const sunStops = S.stops.filter(s => s.lat != null && isPlace(s));
   let visible = sunStops.filter(s => {
     if (filter === "all") return s.plan === "sun";
-    if (filter === "food") return s.plan === "sun" && s.category === "food";
+    if (filter === "food") return s.plan === "sun" && FOOD_CATS.includes(s.category);
     if (filter === "rain") return s.plan === "rain";
     return s.day === filter && s.plan === "sun";
   });
@@ -484,15 +484,15 @@ export function infoSheet() {
 }
 
 export function stopSheet(s, isNew) {
-  const cats = CAT_ORDER.map(k => `<option value="${k}"${s.category === k ? " selected" : ""}>${CAT[k]}</option>`).join("");
+  const cats = CAT_GROUPS.map(([g, ks]) => `<optgroup label="${g}">${ks.map(k => `<option value="${k}"${s.category === k ? " selected" : ""}>${CAT[k]}</option>`).join("")}</optgroup>`).join("");
   return `<h2>${isNew ? "新增一站" : "編輯這站"}</h2>
     <form data-act="save-stop" data-id="${s.id}" class="form">
       <div class="row2"><label>時間<input name="time" type="time" value="${esc(s.time || "")}"></label>
         <label>類型<select name="category">${cats}</select></label></div>
       <label>名稱<input name="name" type="text" required maxlength="80" value="${esc(s.name)}" placeholder="城山日出峰"></label>
       <label>韓文名稱（導航用）<input name="name_ko" type="text" maxlength="80" value="${esc(s.name_ko || "")}" placeholder="성산일출봉" lang="ko"></label>
-      <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="5" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
-        <label>從上一站開車（分鐘）<input name="drive_min" type="number" min="0" max="300" step="5" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
+      <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
+        <label>從上一站開車（分鐘）<input name="drive_min" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
       <label>小提醒（一行一個）<textarea name="tips" rows="3" maxlength="400">${esc((s.tips || []).join("\n"))}</textarea></label>
       ${s.options?.length ? `<p class="muted small">這站的餐廳選項（${s.options.length} 家）會保留，這裡不能改。</p>` : ""}
       <button class="btn primary wide" type="submit">儲存</button>

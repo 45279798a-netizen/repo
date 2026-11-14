@@ -295,7 +295,7 @@ export function newStopTemplate(day, plan) {
   const list = S.stops.filter(x => x.day === day && x.plan === plan);
   const last = list.sort((a, b) => a.position - b.position).at(-1);
   return { id: newId(), day, plan, position: (last?.position ?? -10) + 10, time: "", name: "", name_ko: "", lat: null, lng: null,
-    category: "nature", duration_min: 60, drive_min: null, tips: [], options: null, extra: {} };
+    category: "sight", duration_min: 60, drive_min: null, tips: [], options: null, extra: {} };
 }
 
 /* checklist works locally before joining */

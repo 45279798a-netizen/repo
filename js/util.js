@@ -1,8 +1,19 @@
 /* Small shared helpers: text, time, storage, ids, sun, weather, icons. */
 
 export const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
-export const CAT = { experience: "體驗", walk: "散步", nature: "自然", history: "歷史", sunset: "夕陽", food: "吃飯", beach: "海邊", drive: "兜風", transport: "移動" };
-export const CAT_ORDER = ["nature", "food", "walk", "experience", "history", "sunset", "beach", "drive", "transport"];
+export const CAT = {
+  sight: "景點", nature: "自然", hike: "步道・登山", beach: "海邊", sunset: "夕陽", walk: "散步",
+  food: "吃飯", cafe: "咖啡廳", dessert: "甜點・小吃", market: "市場",
+  museum: "美術館・博物館", history: "歷史", experience: "體驗", shopping: "購物",
+  drive: "兜風", hotel: "住宿", transport: "移動"
+};
+export const CAT_GROUPS = [
+  ["去哪玩", ["sight", "nature", "hike", "beach", "sunset", "walk"]],
+  ["吃什麼", ["food", "cafe", "dessert", "market"]],
+  ["看展・體驗", ["museum", "history", "experience", "shopping"]],
+  ["交通・住宿", ["drive", "hotel", "transport"]]
+];
+export const FOOD_CATS = ["food", "cafe", "dessert", "market"];
 
 export const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export const toMin = t => { if (!t || !/^\d{1,2}:\d{2}$/.test(t)) return null; const [h, m] = t.split(":").map(Number); return h * 60 + m; };
@@ -131,6 +142,14 @@ const IC = {
   beach: '<path d="M2 15c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6-1"/><path d="M2 19c2.5-2 4.5-2 7 0s4.5 2 7 0 4.5-2 6-1"/><circle cx="17" cy="7" r="3"/>',
   drive: '<path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="16" r="1.5"/><circle cx="16.5" cy="16" r="1.5"/>',
   transport: '<path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/>',
+  sight: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  hike: '<path d="M3 20l6-10 4 6 2-3 6 7z"/><path d="M9 10V4l4 1.5L9 7"/>',
+  cafe: '<path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3c0 1.5 1 1.5 1 3M12 3c0 1.5 1 1.5 1 3"/>',
+  dessert: '<path d="M7 10a5 5 0 0 1 10 0"/><path d="M6 10h12l-6 11z"/>',
+  market: '<path d="M3 9l2-5h14l2 5"/><path d="M3 9c0 1.7 1.3 2.5 3 2.5S9 10.7 9 9c0 1.7 1.3 2.5 3 2.5s3-.8 3-2.5c0 1.7 1.3 2.5 3 2.5s3-.8 3-2.5"/><path d="M5 11.5V20h14v-8.5"/>',
+  shopping: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  museum: '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 16l5-5 4 4 3-3 4 4"/><circle cx="15.5" cy="8.5" r="1.5"/>',
+  hotel: '<path d="M3 18V7M3 14h18v4M21 14v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="11" r="2"/>',
   plane: '<path d="M2 13l8-1 5-8h2l-2 8 5 0 2-2h1l-1 4 1 4h-1l-2-2-5 0 2 8h-2l-5-8-8-1z"/>',
   nav: '<path d="M3 11l18-8-8 18-2-8z"/>',
   map: '<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
