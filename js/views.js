@@ -210,7 +210,7 @@ export function planView(date) {
       <span class="d">${md(d.date)}</span><span class="w">${weekday(d.date)}・${esc(d.title || "待補")}${d.date === now.date ? '<span class="today-dot" aria-label="今天"></span>' : ""}</span>
       <span class="bar" style="background:${DAY_COLORS[i % DAY_COLORS.length]}"></span></button>`).join("")}</nav>`;
 
-  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<p class="editing-bar">編輯中：點鉛筆改內容，<b>長按行程上下拖</b>可換順序</p>` : ""}`;
+  let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<p class="editing-bar">編輯中：點鉛筆改內容，按住右邊 <b>⠿</b> 上下拖可換順序</p>` : ""}`;
   if (S.mode === "local") html += `<p class="callout soft">${icon("user")}<span>加入旅行後，大家都能在這裡新增、修改行程。<button class="link-btn inline" type="button" data-act="open-join">加入</button></span></p>`;
   html += `<section class="cover" aria-label="Day ${day.day} 封面">
       <svg class="art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
@@ -290,7 +290,7 @@ function stopRow(day, s, i, num, nextIdx) {
     <div class="time">${esc(s.time || "")}</div>
     <div class="rail"><div class="dot">${move ? "" : num}</div></div>
     <div class="card">
-      ${editable() ? `<button class="edit-btn" type="button" data-act="edit-stop" data-id="${s.id}" aria-label="編輯 ${esc(s.name)}">${icon("edit")}</button>` : ""}
+      ${editable() ? `<button class="edit-btn" type="button" data-act="edit-stop" data-id="${s.id}" aria-label="編輯 ${esc(s.name)}">${icon("edit")}</button><span class="drag-handle" aria-hidden="true">${icon("grip")}</span>` : ""}
       <div class="card-head"><div class="cat-ic" style="background:color-mix(in srgb, ${color} 14%, white)">${icon(s.category, color)}</div>
         <div><h4>${esc(s.name)}${i === nextIdx ? `<span class="next-tag">下一站</span>` : ""}</h4>
           ${s.name_ko && !move ? `<p class="sub" lang="ko">${esc(s.name_ko)}</p>` : ""}
@@ -333,7 +333,7 @@ function dayMap(day, list, nextIdx) {
   </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
 }
 
-export const APP_VERSION = "12";
+export const APP_VERSION = "12.1";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");

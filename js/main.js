@@ -290,6 +290,7 @@ function dragStart(li, y) {
     let d = 0;
     if (drag.y < edge) d = -Math.ceil((edge - drag.y) / 6);
     else if (drag.y > vh - edge - 84) d = Math.ceil((drag.y - (vh - edge - 84)) / 6);
+    d = Math.max(-14, Math.min(14, d));
     if (d) { const b = window.scrollY; window.scrollBy(0, d); drag.startY -= window.scrollY - b; follow(); }
     drag.raf = requestAnimationFrame(tick);
   };
@@ -322,29 +323,33 @@ function dragEnd() {
   const now = ids(tl);
   drag = null;
   eatClick = true; setTimeout(() => { eatClick = false; }, 350);
-  if (now.join() === order.join()) { render(); return; }
-  saveOrder(tl.dataset.date, tl.dataset.plan, now);
+  const id = li.dataset.sid;
+  if (now.join() === order.join()) { render(); jump(id); return; }
+  saveOrder(tl.dataset.date, tl.dataset.plan, now, id);
 }
 function pressStart(e, y) {
   if (!V.getEditMode()) return false;
   const li = e.target.closest("#timeline li[data-sid]");
   if (!li || e.target.closest("input,select,textarea")) return false;
-  lp = { li, y0: y, y, t: setTimeout(() => { if (lp) { const l = lp; lp = null; dragStart(l.li, l.y); } }, HOLD) };
+  // The grip starts dragging right away; anywhere else on the card needs a short hold.
+  if (e.target.closest(".drag-handle")) { dragStart(li, y); return true; }
+  li.classList.add("pressing");
+  lp = { li, y0: y, y, t: setTimeout(() => { if (lp) { const l = lp; lp = null; l.li.classList.remove("pressing"); dragStart(l.li, l.y); } }, HOLD) };
   return true;
 }
-function pressCancel() { if (lp) { clearTimeout(lp.t); lp = null; } }
+function pressCancel() { if (lp) { clearTimeout(lp.t); lp.li.classList.remove("pressing"); lp = null; } }
 document.addEventListener("touchstart", e => { if (e.touches.length === 1) pressStart(e, e.touches[0].clientY); else pressCancel(); }, { passive: true });
 document.addEventListener("touchmove", e => {
   const y = e.touches[0].clientY;
   if (drag) { e.preventDefault(); drag.y = y; follow(); return; }
-  if (lp && Math.abs(y - lp.y0) > 8) pressCancel(); // finger moved: it's a scroll
+  if (lp && Math.abs(y - lp.y0) > 12) pressCancel(); // finger moved: it's a scroll
   else if (lp) lp.y = y;
 }, { passive: false });
 document.addEventListener("touchend", e => { pressCancel(); if (drag) { e.preventDefault(); dragEnd(); } });
 document.addEventListener("touchcancel", () => { pressCancel(); dragEnd(); });
 document.addEventListener("contextmenu", e => { if (V.getEditMode() && e.target.closest("#timeline li[data-sid]")) e.preventDefault(); });
 // mouse (desktop)
-document.addEventListener("mousedown", e => { if (e.button === 0 && !e.target.closest("button,a")) pressStart(e, e.clientY); });
+document.addEventListener("mousedown", e => { if (e.button === 0 && !e.target.closest("button,a")) { if (pressStart(e, e.clientY)) e.preventDefault(); } });
 document.addEventListener("mousemove", e => {
   if (drag) { drag.y = e.clientY; follow(); return; }
   if (lp && Math.abs(e.clientY - lp.y0) > 4) { const l = lp; pressCancel(); dragStart(l.li, l.y0); drag.y = e.clientY; follow(); }
@@ -352,7 +357,7 @@ document.addEventListener("mousemove", e => {
 document.addEventListener("mouseup", () => { pressCancel(); dragEnd(); });
 document.addEventListener("click", e => { if (eatClick) { e.stopPropagation(); e.preventDefault(); eatClick = false; } }, true);
 
-function saveOrder(date, plan, order) {
+function saveOrder(date, plan, order, movedId) {
   const cur = V.stopsFor(date, plan);
   const by = Object.fromEntries(cur.map(s => [s.id, s]));
   const prevLocated = list => { const m = {}; let p = null; list.forEach(id => { const s = by[id]; if (s.lat != null) { m[id] = p; p = id; } }); return m; };
@@ -371,7 +376,7 @@ function saveOrder(date, plan, order) {
     if (here) prev = here;
     if (dirty) changed.push(s);
   });
-  guard(async () => { await store.saveStops(changed); toast("順序換好了，時間記得檢查"); render(); });
+  guard(async () => { await store.saveStops(changed); toast("順序換好了，時間記得檢查"); render(); jump(movedId); });
 }
 
 /* Keep new stops in time order and refresh estimated drive times. */

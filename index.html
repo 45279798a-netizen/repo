@@ -327,6 +327,12 @@
   .edit-btn { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 18px; background: transparent; color: var(--stone); display: grid; place-items: center; cursor: pointer; }
   .edit-btn svg { width: 18px; height: 18px; }
   .card-head { padding-right: 28px; }
+  .drag-handle { position: absolute; top: 46px; right: 6px; width: 40px; height: 48px; display: grid; place-items: center; color: var(--stone); cursor: grab; touch-action: none; border-radius: 14px; }
+  .drag-handle svg { width: 22px; height: 22px; }
+  .drag-handle:active { background: var(--mist); }
+  .timeline.sorting .drag-handle { top: 50%; transform: translateY(-50%); }
+  li[data-sid] .card-head { padding-right: 40px; }
+  .timeline li.pressing .card { transform: scale(.97); transition: transform .4s ease-out; }
   .edited-by { margin: 8px 0 0; font-size: 12px; color: var(--stone); }
   .add-stop { width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 52px; border: 1.5px dashed #B7C2C1; border-radius: 20px; background: transparent; color: var(--basalt); font: 700 15px var(--body); cursor: pointer; margin: 4px 0 0; }
   .add-stop svg { width: 18px; height: 18px; }
