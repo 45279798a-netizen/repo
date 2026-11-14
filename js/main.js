@@ -161,6 +161,28 @@ document.addEventListener("click", e => {
     }
     case "pick-zoom": V.zoomPicker(el.dataset.dir, currentPick()); redrawPicker(); break;
     case "pick-clear": setPick(null); break;
+    case "pick-search": {
+      const f = sheetBody.querySelector("form[data-act=save-stop]");
+      const q = (f.name_ko.value || f.name.value).trim();
+      const box = document.getElementById("pick-results");
+      if (!q) { box.innerHTML = V.pickResultsHtml([], "先填名稱或韓文名稱"); break; }
+      if (Date.now() - lastSearch < 1500) break; // OpenStreetMap allows at most one search per second
+      lastSearch = Date.now();
+      el.textContent = "搜尋中…"; el.disabled = true;
+      const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&bounded=1" +
+        "&viewbox=126.10,33.62,127.00,33.10&accept-language=ko&q=" + encodeURIComponent(q);
+      fetch(url).then(r => { if (!r.ok) throw 0; return r.json(); })
+        .then(list => { box.innerHTML = V.pickResultsHtml(list); })
+        .catch(() => { box.innerHTML = V.pickResultsHtml([], "現在搜尋不到（可能沒網路），請直接在地圖上點。"); })
+        .finally(() => { el.textContent = "用名稱找位置"; el.disabled = false; });
+      break;
+    }
+    case "pick-hit": {
+      const p = { lat: +(+el.dataset.lat).toFixed(5), lng: +(+el.dataset.lng).toFixed(5) };
+      V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p);
+      document.getElementById("pick-results").innerHTML = `<p class="muted small">已放好，可以再點地圖微調。</p>`;
+      break;
+    }
     case "pick-here":
       if (!navigator.geolocation) { toast("這個瀏覽器不能取得位置"); break; }
       el.textContent = "定位中…";
@@ -218,6 +240,7 @@ document.addEventListener("click", e => {
 });
 
 let pendingNew = null;
+let lastSearch = 0;
 let editingStop = null, pickPoint = null;
 function currentPick() {
   const f = sheetBody.querySelector("form[data-act=save-stop]");

@@ -435,6 +435,15 @@
   .driver-ko { font-size: 18px; margin: 4px 0 16px; }
   .driver b { display: block; font-size: 30px; line-height: 1.4; word-break: keep-all; }
   .driver-name { font-size: 18px; margin-top: 14px; color: var(--stone); }
+  .warn.soft { background: #F2F5F4; color: var(--stone); font-weight: 500; font-size: 13px; }
+  .pick-results { display: grid; gap: 6px; }
+  .pick-results p { margin: 0; }
+  .pick-hit { display: grid; text-align: left; gap: 2px; border: 1px solid #CFD8D7; background: #fff; border-radius: 12px; padding: 8px 12px; font: 14px var(--body); color: var(--basalt); cursor: pointer; }
+  .pick-hit small { color: var(--stone); font-size: 12px; }
+  .unplaced ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+  .unplaced li { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+  .unplaced li b { font-family: var(--num); margin-right: 6px; }
+  .unplaced .btn { flex: 0 0 auto; }
   .toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; background: var(--basalt); color: #fff; padding: 10px 16px; border-radius: 14px; font-size: 14px; max-width: calc(100% - 32px); }
 
 </style>

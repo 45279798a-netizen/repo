@@ -233,6 +233,7 @@ export function planView(date) {
         <button class="btn wide" type="button" data-act="copy-to-rain" data-date="${day.date}">複製晴天行程當作雨天備案</button>` : ""}</section>`;
   }
   if (list.some(s => s.lat != null)) html += dayMap(day, list, nextIdx);
+  else if (places.length) html += `<p class="callout soft">${icon("map")}<span>這天的站都還沒放位置，所以沒有路線圖。打開右上角「編輯」，在每站的鉛筆裡點地圖放位置。</span></p>`;
   html += `<div class="section-h"><h3>行程</h3><span>${places.length} 站</span></div><ol class="timeline">`;
   if (arr) html += flightRow(arr, "arr");
   let n = 0;
@@ -291,6 +292,7 @@ function stopRow(day, s, i, num, nextIdx) {
         <div><h4>${esc(s.name)}${i === nextIdx ? `<span class="next-tag">下一站</span>` : ""}</h4>
           ${s.name_ko && !move ? `<p class="sub" lang="ko">${esc(s.name_ko)}</p>` : ""}
           ${move ? "" : `<p class="sub"><span class="chip" style="background:color-mix(in srgb, ${color} 14%, white);color:${color}">${CAT[s.category] || ""}</span>${s.duration_min ? `約 ${s.duration_min} 分鐘` : ""}</p>`}</div></div>
+      ${editable() && !move && s.lat == null ? `<p class="warn soft">還沒放位置：不會出現在地圖上，按鉛筆補上</p>` : ""}
       ${s.extra?.warn === "tight" ? `<p class="warn">⚠ 到機場的時間偏緊</p>` : ""}
       ${sunsetBlock}
       ${tips.length ? `<ul class="tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
@@ -324,7 +326,7 @@ function dayMap(day, list, nextIdx) {
       const cls = ["pin", isDone(day.date, s.id) ? "is-done" : "", i === nextIdx ? "is-next" : ""].join(" ");
       return `<g class="${cls}" data-act="jump" data-id="${s.id}" tabindex="0" role="button" aria-label="跳到 ${esc(s.name)}">
         <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="15" style="stroke-width:3"/><text x="${x.toFixed(1)}" y="${y.toFixed(1)}" style="font-size:15px">${order.get(i) ?? "✈"}</text></g>`; }).join("")}
-  </svg></div><p class="map-note">點地圖上的編號，會跳到那一站</p>`;
+  </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
 }
 
 export function infoFooter() {
@@ -390,7 +392,8 @@ export function mapView(state) {
       </svg>${pins}
       ${legend ? `<div class="legend">${legend}</div>` : ""}
     </div>
-    ${visible.length ? sheet : `<div class="empty"><h3>這裡還沒有地點</h3><p>有座標的站才會出現在地圖上。</p></div>`}
+    ${visible.length ? sheet : `<div class="empty"><h3>這裡還沒有地點</h3><p>有位置的站才會出現在地圖上。</p></div>`}
+    ${unplacedCard(filter)}
   </main>`;
 }
 
@@ -573,6 +576,8 @@ export function stopSheet(s, isNew) {
           <button class="btn" type="button" data-act="pick-zoom" data-dir="out">縮小</button>
           <button class="btn" type="button" data-act="pick-here">我的位置</button>
           <button class="btn" type="button" data-act="pick-clear">清除</button></div>
+        <button class="btn wide" type="button" data-act="pick-search">用名稱找位置</button>
+        <div id="pick-results" class="pick-results" aria-live="polite"></div>
         <input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
       </fieldset>
       <label>小提醒（一行一個）<textarea name="tips" rows="3" maxlength="400">${esc((s.tips || []).join("\n"))}</textarea></label>
@@ -654,4 +659,22 @@ function stayCard(date) {
 export function driverSheet(name, address) {
   return `<div class="driver"><p class="muted">請載我到這個地址</p><p class="driver-ko" lang="ko">이 주소로 가 주세요</p>
     <b lang="ko">${esc(address)}</b>${name ? `<p class="driver-name">${esc(name)}</p>` : ""}</div>`;
+}
+
+export function pickResultsHtml(list, err) {
+  if (err) return `<p class="muted small">${esc(err)}</p>`;
+  if (!list.length) return `<p class="muted small">找不到。試試改用韓文名稱，或直接在地圖上點。</p>`;
+  return `<p class="muted small">選一個（資料來自 OpenStreetMap，可能不完整）：</p>` + list.map((r, i) =>
+    `<button class="pick-hit" type="button" data-act="pick-hit" data-lat="${r.lat}" data-lng="${r.lon}"><b>${esc(r.name || r.display_name.split(",")[0])}</b><small>${esc(r.display_name.split(",").slice(1, 3).join("・"))}</small></button>`).join("");
+}
+
+function unplacedCard(filter) {
+  const list = S.stops.filter(s => isPlace(s) && s.lat == null && (
+    filter === "all" ? s.plan === "sun" : filter === "rain" ? s.plan === "rain" : filter === "food" ? s.plan === "sun" && FOOD_CATS.includes(s.category) : s.day === filter && s.plan === "sun"))
+    .sort((a, b) => (a.day + (a.time || "")).localeCompare(b.day + (b.time || "")));
+  if (!list.length) return "";
+  return `<section class="card unplaced"><h3>還沒放位置（${list.length} 站）</h3>
+    <p class="muted small">這些站沒有位置，所以不在地圖上，也算不出車程。${S.mode === "synced" ? "點「放位置」補上。" : "加入旅行後可以補上。"}</p>
+    <ul>${list.map(s => `<li><span><b>${md(s.day)} ${esc(s.time || "")}</b>${esc(s.name)}</span>
+      ${S.mode === "synced" ? `<button class="btn" type="button" data-act="edit-stop" data-id="${s.id}">放位置</button>` : ""}</li>`).join("")}</ul></section>`;
 }
