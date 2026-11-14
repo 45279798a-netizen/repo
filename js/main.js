@@ -290,12 +290,17 @@ function dragStart(li, y) {
   navigator.vibrate?.(15);
   const tick = () => {
     if (!drag) return;
-    const edge = 90, vh = window.innerHeight;
-    let d = 0;
-    if (drag.y < edge) d = -Math.ceil((edge - drag.y) / 8);
-    else if (drag.y > vh - edge - 84) d = Math.ceil((drag.y - (vh - edge - 84)) / 8);
-    d = Math.max(-12, Math.min(12, d));
-    if (d) { window.scrollBy(0, d); follow(); }
+    // Auto-scroll near the edges: faster the deeper you go, and it speeds up the longer you hold there.
+    const vh = window.innerHeight, top = 150, bottom = vh - 84 - 130;
+    let depth = 0;
+    if (drag.y < top) depth = -(top - drag.y) / top;
+    else if (drag.y > bottom) depth = (drag.y - bottom) / (vh - bottom);
+    if (depth) {
+      drag.held = (drag.held || 0) + 1;
+      const boost = Math.min(2.5, 1 + drag.held / 40);
+      const d = Math.sign(depth) * Math.round((8 + Math.min(1, Math.abs(depth)) * 24) * boost);
+      window.scrollBy(0, d); follow();
+    } else drag.held = 0;
     drag.raf = requestAnimationFrame(tick);
   };
   drag.raf = requestAnimationFrame(tick);
