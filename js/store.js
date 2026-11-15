@@ -371,5 +371,36 @@ export async function photoUrls(paths) {
   return Object.fromEntries(paths.map(p => [p, urlCache.get(p)?.url || null]));
 }
 
+/* ---------- map link → coordinates ---------- */
+const KR = (lat, lng) => lat > 32.8 && lat < 38.9 && lng > 124 && lng < 131.5;
+// Full links and plain "33.24, 126.41" text are read right here; short share links go through the Supabase function.
+export function coordsInText(text) {
+  let t = text; try { t = decodeURIComponent(text); } catch {}
+  const pats = [/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /[?&](?:q|query|ll|center|destination)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
+    /@(-?\d+\.\d+),(-?\d+\.\d+)/, /[?&]lat=(-?\d+\.\d+)&lng=(-?\d+\.\d+)/, /^\s*\(?(-?\d{2}\.\d{3,})\s*[,，\s]\s*(-?\d{3}\.\d{3,})\)?\s*$/];
+  for (const re of pats) { const m = t.match(re); if (m && KR(+m[1], +m[2])) return { lat: +(+m[1]).toFixed(5), lng: +(+m[2]).toFixed(5) }; }
+  const n = t.match(/[?&]lng=(-?\d+\.\d+)&lat=(-?\d+\.\d+)/);
+  if (n && KR(+n[2], +n[1])) return { lat: +(+n[2]).toFixed(5), lng: +(+n[1]).toFixed(5) };
+  return null;
+}
+export async function placeFromLink(text) {
+  const local = coordsInText(text.trim());
+  if (local) {
+    const g = text.match(/\/maps\/place\/([^/@?]+)/);
+    let name = ""; if (g) { try { name = decodeURIComponent(g[1].replace(/\+/g, " ")); } catch {} }
+    return { ...local, name };
+  }
+  if (!/https?:\/\//.test(text)) throw new Error("貼上的不是地圖連結");
+  if (!sb || S.mode !== "synced") throw new Error("要先加入行程、有網路才能用連結找位置");
+  const { data, error } = await sb.functions.invoke("place-from-link", { body: { url: text } });
+  if (error) {
+    let msg = "";
+    try { msg = (await error.context.json()).error; } catch {}
+    if (!msg && error.context?.status === 404) msg = "還沒在 Supabase 加上 place-from-link 功能（看 README 的步驟）";
+    throw new Error(msg || "現在抓不到位置，等一下再試");
+  }
+  return data;
+}
+
 export function myId() { return userId; }
 export function memberById(id) { return S.members.find(m => m.user_id === id) || null; }

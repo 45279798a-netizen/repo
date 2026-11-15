@@ -19,6 +19,11 @@
 第一次設定：在 Supabase 開啟匿名登入（Authentication → Sign In / Providers → Allow anonymous sign-ins），
 再把 [`supabase/setup.sql`](supabase/setup.sql) 裡的通關碼改掉，貼到 SQL Editor 執行。
 
+貼 Google 地圖連結找位置：要在 Supabase 加一個小功能（只要做一次）。
+Edge Functions → Deploy a new function → Via Editor，名稱填 `place-from-link`，
+把 [`supabase/functions/place-from-link/index.ts`](supabase/functions/place-from-link/index.ts) 的內容整個貼上 → Deploy。
+部署後到這個 function 的設定，把「Verify JWT」關掉（function 自己會檢查是不是已加入的人）。
+
 連線設定在 [`js/config.js`](js/config.js)（只有公開的 publishable key）。沒加入或沒網路時，app 仍然能看行程。
 
 行程資料在 [`data/itinerary.json`](data/itinerary.json)，改這份檔案 app 就會跟著變。

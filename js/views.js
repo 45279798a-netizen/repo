@@ -333,7 +333,7 @@ function dayMap(day, list, nextIdx) {
   </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
 }
 
-export const APP_VERSION = "12.5";
+export const APP_VERSION = "13";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -574,14 +574,20 @@ export function stopSheet(s, isNew) {
       <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
         <label>從上一站開車（分鐘）<input name="drive_min" placeholder="放了位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
       <fieldset class="loc"><legend>位置</legend>
-        <p class="muted small">在地圖上點一下放位置，地圖和車程就會跟著更新。導航會用韓文名稱搜尋，比較準。</p>
+        <div class="maplink">
+          <p class="small"><b>最快：</b>在 Google 地圖搜尋這個地方 → 分享 → 複製連結，回來按「貼上連結」。</p>
+          <div class="maplink-row"><input name="maplink" type="url" inputmode="url" placeholder="https://maps.app.goo.gl/…" aria-label="Google 地圖連結" autocomplete="off">
+            <button class="btn primary" type="button" data-act="pick-paste">貼上連結</button></div>
+          <div id="link-status" class="small" aria-live="polite"></div>
+        </div>
+        <p class="muted small">或在地圖上點一下放位置。放好後地圖和車程會跟著更新。</p>
         <div id="picker" class="picker">${pickerHtml(s)}</div>
         <div class="row-btns">
           <button class="btn" type="button" data-act="pick-zoom" data-dir="in">放大</button>
           <button class="btn" type="button" data-act="pick-zoom" data-dir="out">縮小</button>
           <button class="btn" type="button" data-act="pick-here">我的位置</button>
           <button class="btn" type="button" data-act="pick-clear">清除</button></div>
-        <button class="btn wide" type="button" data-act="pick-search">用名稱找位置</button>
+        <button class="btn wide" type="button" data-act="pick-search">用名稱找位置（大景點才找得到）</button>
         <div id="pick-results" class="pick-results" aria-live="polite"></div>
         <input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
       </fieldset>

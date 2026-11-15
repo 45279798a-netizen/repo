@@ -177,6 +177,15 @@ document.addEventListener("click", e => {
         .finally(() => { el.textContent = "用名稱找位置"; el.disabled = false; });
       break;
     }
+    case "pick-paste": {
+      const f = sheetBody.querySelector("form[data-act=save-stop]");
+      const typed = f.maplink.value.trim();
+      if (typed) { resolveLink(typed); break; }
+      if (!navigator.clipboard?.readText) { f.maplink.focus(); linkStatus("把連結貼到上面的框框"); break; }
+      navigator.clipboard.readText().then(t => { if (!t.trim()) throw 0; f.maplink.value = t.trim(); resolveLink(t.trim()); })
+        .catch(() => { f.maplink.focus(); linkStatus("讀不到剪貼簿，請長按上面的框框選「貼上」"); });
+      break;
+    }
     case "pick-hit": {
       const p = { lat: +(+el.dataset.lat).toFixed(5), lng: +(+el.dataset.lng).toFixed(5) };
       V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p);
@@ -237,6 +246,34 @@ document.addEventListener("click", e => {
     case "demo": setDemoTime("2026-11-28T13:00:00"); toast("預覽 11/28（六）13:00 的樣子"); render(true); break;
     case "demo-off": setDemoTime(null); render(true); break;
   }
+});
+
+function linkStatus(msg, ok) {
+  const b = document.getElementById("link-status");
+  if (b) { b.textContent = msg; b.className = "small " + (ok ? "ok" : msg ? "bad" : ""); }
+}
+let linkBusy = false;
+async function resolveLink(text) {
+  if (linkBusy) return;
+  linkBusy = true; linkStatus("找位置中…", true);
+  try {
+    const r = await store.placeFromLink(text);
+    const f = sheetBody.querySelector("form[data-act=save-stop]");
+    if (!f) return;
+    const p = { lat: r.lat, lng: r.lng };
+    V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p);
+    const nm = (r.name || "").trim();
+    if (nm && !f.name.value.trim()) f.name.value = nm;
+    if (nm && /[\uac00-\ud7a3]/.test(nm) && !f.name_ko.value.trim()) f.name_ko.value = nm;
+    linkStatus(`放好了${nm ? `：${nm}` : ""}。不對的話可以在地圖上點一下微調。`, true);
+    f.maplink.value = "";
+  } catch (e) {
+    linkStatus(e.message || "抓不到位置");
+  } finally { linkBusy = false; }
+}
+// Pasting a link into the box resolves it right away.
+document.addEventListener("input", e => {
+  if (e.target.name === "maplink" && /https?:\/\/\S+|\d{2}\.\d{3,}/.test(e.target.value) && e.inputType !== "insertText") resolveLink(e.target.value.trim());
 });
 
 let pendingNew = null;
