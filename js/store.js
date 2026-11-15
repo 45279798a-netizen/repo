@@ -377,7 +377,10 @@ export async function photoUrls(paths) {
 const KR = (lat, lng) => lat > 32.8 && lat < 38.9 && lng > 124 && lng < 131.5;
 const r5 = n => +(+n).toFixed(5);
 const dec = t => { try { return decodeURIComponent(t); } catch { return t.replace(/%2C/gi, ","); } };
-const unesc = t => t.replace(/\\u003d/gi, "=").replace(/\\u0026/gi, "&").replace(/\\u002F/gi, "/").replace(/\\\//g, "/").replace(/&amp;/g, "&");
+// Google pages hide addresses behind JS escapes (\x3d, &, \/) and HTML entities.
+const unesc = t => t.replace(/\\x([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+  .replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+  .replace(/\\\//g, "/").replace(/&amp;/g, "&").replace(/&#61;/g, "=").replace(/&#39;/g, "'");
 export function coordsInText(text) {
   const t = dec(unesc(text));
   const pairs = [/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /[?&](?:q|query|ll|center|destination|daddr)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/,
@@ -388,7 +391,17 @@ export function coordsInText(text) {
   const swapped = [/[?&]lng=(-?\d+\.\d+)&lat=(-?\d+\.\d+)/, /"x"\s*:\s*"?(\d{3}\.\d+)"?\s*,\s*"y"\s*:\s*"?(\d{2}\.\d+)/,
     /APP_INITIALIZATION_STATE=\[\[\[-?\d+\.?\d*,(-?\d+\.\d+),(-?\d+\.\d+)\]/];
   for (const re of swapped) { const m = t.match(re); if (m && KR(+m[2], +m[1])) return { lat: r5(m[2]), lng: r5(m[1]) }; }
-  return null;
+  return t.length > 2000 ? mostRepeated(t) : null;
+}
+// Last resort on a full page: the place's own coordinates are the pair that shows up most often.
+// Jeju first, then anywhere in Korea.
+function mostRepeated(t) {
+  const count = new Map();
+  const add = (la, ln, jeju) => { if (!KR(la, ln)) return; const k = la.toFixed(3) + "," + ln.toFixed(3); const v = count.get(k) || { n: 0, la, ln, jeju }; v.n++; count.set(k, v); };
+  for (const m of t.matchAll(/(3[3-8]\.\d{4,})[^\d.-]{1,12}(12[4-9]\.\d{4,}|13[01]\.\d{4,})/g)) add(+m[1], +m[2], +m[1] < 33.7);
+  for (const m of t.matchAll(/(12[4-9]\.\d{4,}|13[01]\.\d{4,})[^\d.-]{1,12}(3[3-8]\.\d{4,})/g)) add(+m[2], +m[1], +m[2] < 33.7);
+  const all = [...count.values()].sort((a, b) => (b.jeju - a.jeju) || (b.n - a.n));
+  return all.length ? { lat: r5(all[0].la), lng: r5(all[0].ln) } : null;
 }
 function nameIn(url, html = "") {
   const g = url.match(/\/maps\/place\/([^/@?]+)/);
