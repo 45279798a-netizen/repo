@@ -394,11 +394,18 @@ export async function placeFromLink(text) {
   if (!sb || S.mode !== "synced") throw new Error("要先加入行程、有網路才能用連結找位置");
   const { data, error } = await sb.functions.invoke("place-from-link", { body: { url: text } });
   if (error) {
-    let msg = "";
-    try { msg = (await error.context.json()).error; } catch {}
-    if (!msg && error.context?.status === 404) msg = "還沒在 Supabase 加上 place-from-link 功能（看 README 的步驟）";
-    throw new Error(msg || "現在抓不到位置，等一下再試");
+    const st = error.context?.status;
+    let body = null;
+    try { body = await error.context.json(); } catch {}
+    let msg = body?.error || "";
+    const raw = body?.msg || body?.message || "";
+    if (!msg && st === 404) msg = "Supabase 裡找不到 place-from-link 功能：確認已部署，名稱要一模一樣";
+    else if (!msg && st === 401) msg = "Supabase 擋下了請求：到 place-from-link 的設定把「Verify JWT」關掉";
+    else if (!msg && !st) msg = "連不到 Supabase 的 place-from-link（還沒部署，或沒網路）";
+    else if (!msg) msg = `抓不到位置（錯誤 ${st}${raw ? "：" + raw : ""}）`;
+    throw new Error(msg);
   }
+  if (!data || data.lat == null) throw new Error("抓不到位置（回傳是空的）");
   return data;
 }
 
