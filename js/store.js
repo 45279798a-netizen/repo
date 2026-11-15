@@ -374,7 +374,7 @@ export async function photoUrls(paths) {
 /* ---------- map link → coordinates ---------- */
 // The Supabase function only opens the link (short links need a server); all reading happens here,
 // so it can be improved without redeploying the function.
-const APP_V = "13.4";
+const APP_V = "14";
 const KR = (lat, lng) => lat > 32.8 && lat < 38.9 && lng > 124 && lng < 131.5;
 const r5 = n => +(+n).toFixed(5);
 const dec = t => { try { return decodeURIComponent(t); } catch { return t.replace(/%2C/gi, ","); } };
@@ -481,7 +481,7 @@ export async function placeFromLink(text) {
   const nv = !c && (r.url || "").match(/place\/(\d{5,})/);
   if (nv) c = look(await openLink(`https://m.place.naver.com/place/${nv[1]}/home`, "mobile"));
   if (!c) {
-    const e = new Error(`找不到座標，可以改在地圖上點。若要回報給 Claude（v${APP_V}）：${tried.join(" → ")}`);
+    const e = new Error(`抓不到精確位置，地圖會繼續用名稱找。若要回報給 Claude（v${APP_V}）：${tried.join(" → ")}`);
     e.placeName = name;
     throw e;
   }

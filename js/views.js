@@ -1,6 +1,6 @@
 /* Render functions. Each returns HTML for one tab or sheet. */
 import { S, memberById, myId } from "./store.js";
-import { ART, makeProjection, coastPath, PLACE_LABELS } from "./art.js";
+import { ART } from "./art.js";
 import {
   esc, toMin, hhmm, md, weekday, wdNum, kstNow, sunTimes, wmo, wxIcon, wxAdvice, cachedWeather,
   icon, CAT, CAT_GROUPS, FOOD_CATS, getDemoTime, WEEK
@@ -232,8 +232,7 @@ export function planView(date) {
       ${plan === "rain" && !hasRain(day.date) ? `<p class="plan-note">這天還沒有雨天備案。可以從晴天行程複製一份再改，或一站一站新增。</p>
         <button class="btn wide" type="button" data-act="copy-to-rain" data-date="${day.date}">複製晴天行程當作雨天備案</button>` : ""}</section>`;
   }
-  if (list.some(s => s.lat != null)) html += dayMap(day, list, nextIdx);
-  else if (places.length) html += `<p class="callout soft">${icon("map")}<span>這天的站都還沒放位置，所以沒有路線圖。打開右上角「編輯」，在每站的鉛筆裡點地圖放位置。</span></p>`;
+  html += dayGmap(day, list, nextIdx);
   html += `<div class="section-h"><h3>行程</h3><span>${places.length} 站</span></div><ol class="timeline" id="timeline" data-date="${day.date}" data-plan="${plan}">`;
   if (arr) html += flightRow(arr, "arr");
   let n = 0, lastT = null;
@@ -295,7 +294,6 @@ function stopRow(day, s, i, num, nextIdx) {
         <div><h4>${esc(s.name)}${i === nextIdx ? `<span class="next-tag">下一站</span>` : ""}</h4>
           ${s.name_ko && !move ? `<p class="sub" lang="ko">${esc(s.name_ko)}</p>` : ""}
           ${move ? "" : `<p class="sub"><span class="chip" style="background:color-mix(in srgb, ${color} 14%, white);color:${color}">${CAT[s.category] || ""}</span>${s.duration_min ? `約 ${s.duration_min} 分鐘` : ""}</p>`}</div></div>
-      ${editable() && !move && s.lat == null ? `<p class="warn soft">還沒放位置：不會出現在地圖上，按鉛筆補上</p>` : ""}
       ${editable() && s._early ? `<p class="warn">時間比上一站早：按鉛筆改時間</p>` : ""}
       ${s.extra?.warn === "tight" ? `<p class="warn">⚠ 到機場的時間偏緊</p>` : ""}
       ${sunsetBlock}
@@ -306,34 +304,38 @@ function stopRow(day, s, i, num, nextIdx) {
     </div></li>`;
 }
 
-function dayMap(day, list, nextIdx) {
-  const pinned = list.map((s, i) => ({ s, i })).filter(o => o.s.lat != null && (isPlace(o.s) || /機場/.test(o.s.name)));
-  if (!pinned.length) return "";
-  const pad = 0.035;
-  const lngs = pinned.map(o => o.s.lng), lats = pinned.map(o => o.s.lat);
-  let b = { lng0: Math.min(...lngs) - pad, lng1: Math.max(...lngs) + pad, lat0: Math.min(...lats) - pad, lat1: Math.max(...lats) + pad };
-  const minSpan = 0.22;
-  if (b.lng1 - b.lng0 < minSpan) { const c = (b.lng0 + b.lng1) / 2; b.lng0 = c - minSpan / 2; b.lng1 = c + minSpan / 2; }
-  const wantLat = (b.lng1 - b.lng0) * 0.835 * 0.5;
-  if (b.lat1 - b.lat0 < wantLat) { const c = (b.lat0 + b.lat1) / 2; b.lat0 = c - wantLat / 2; b.lat1 = c + wantLat / 2; }
-  const P = makeProjection(b, 520, 18);
-  const order = new Map(); let n = 0;
-  list.forEach((s, i) => { if (isPlace(s)) order.set(i, ++n); });
-  const route = pinned.map(o => P.px(o.s.lng, o.s.lat).map(v => v.toFixed(1)).join(",")).join(" ");
-  const others = S.stops.filter(s => s.day !== day.date && s.plan === "sun" && s.lat != null && isPlace(s));
-  return `<div class="map"><svg viewBox="0 0 ${P.width} ${P.height}" role="img" aria-label="${esc(md(day.date))} 的路線圖">
-    <path class="island" d="${coastPath(P.px)}" vector-effect="non-scaling-stroke"/>
-    ${PLACE_LABELS.map(l => { const [x, y] = P.px(l.lng, l.lat); return `<text class="label" style="font-size:16px" x="${x.toFixed(0)}" y="${(y + l.dy * 1.3).toFixed(0)}" text-anchor="middle">${l.t}</text>`; }).join("")}
-    ${others.map(s => { const [x, y] = P.px(s.lng, s.lat); return `<circle class="ghost" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/>`; }).join("")}
-    ${pinned.length > 1 ? `<polyline class="route" points="${route}" style="stroke-width:3.5"/>` : ""}
-    ${pinned.map(({ s, i }) => { const [x, y] = P.px(s.lng, s.lat);
-      const cls = ["pin", isDone(day.date, s.id) ? "is-done" : "", i === nextIdx ? "is-next" : ""].join(" ");
-      return `<g class="${cls}" data-act="jump" data-id="${s.id}" tabindex="0" role="button" aria-label="跳到 ${esc(s.name)}">
-        <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="15" style="stroke-width:3"/><text x="${x.toFixed(1)}" y="${y.toFixed(1)}" style="font-size:15px">${order.get(i) ?? "✈"}</text></g>`; }).join("")}
-  </svg></div><p class="map-note">點地圖上的編號，會跳到那一站${(() => { const miss = list.filter(s => isPlace(s) && s.lat == null).length; return miss ? `・<b>${miss} 站還沒放位置</b>` : ""; })()}</p>`;
+/* ---------- Google Maps (embedded, no key needed) ---------- */
+// A stop is shown by its exact coordinates when it has them, otherwise Google finds it by name.
+export function gmapQuery(s) {
+  if (s.lat != null && !s.extra?.approx) return `${s.lat},${s.lng}`;
+  const q = (s.extra?.search_q || s.name_ko || s.name || "").trim();
+  if (!q) return "濟州島";
+  return /제주|濟州|济州|jeju/i.test(q) ? q : `${q} ${/[가-힣]/.test(q) ? "제주" : "濟州"}`;
+}
+export function gmapSrc(q, z = 15) { return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&hl=zh-TW&z=${z}&output=embed`; }
+export function gmapFrame(q, z, title, cls = "gmap") {
+  return `<div class="${cls}"><iframe src="${gmapSrc(q, z)}" title="${esc(title)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div>`;
+}
+const gmapOpen = s => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gmapQuery(s))}`;
+function gmapRoute(list) {
+  const q = list.map(gmapQuery);
+  if (q.length < 2) return q.length ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q[0])}` : "";
+  const w = q.slice(1, -1).slice(0, 9);
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(q[0])}&destination=${encodeURIComponent(q[q.length - 1])}${w.length ? `&waypoints=${encodeURIComponent(w.join("|"))}` : ""}`;
+}
+function dayGmap(day, list, nextIdx) {
+  const places = list.filter(isPlace);
+  if (!places.length) return "";
+  const focus = (nextIdx >= 0 && isPlace(list[nextIdx]) ? list[nextIdx] : null) || places[0];
+  return `<section class="day-gmap">
+    ${gmapFrame(gmapQuery(focus), 13, `${focus.name} 的地圖`)}
+    <div class="day-gmap-bar"><span class="small">地圖上是：<b>${esc(focus.name)}</b></span>
+      <span class="row-btns"><a class="btn" href="#map" data-act="map-day" data-date="${day.date}">每站地圖</a>
+      <a class="btn" href="${gmapRoute(places)}" target="_blank" rel="noopener">整天路線</a></span></div>
+  </section>`;
 }
 
-export const APP_VERSION = "13.4";
+export const APP_VERSION = "14";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -344,61 +346,45 @@ export function infoFooter() {
 /* ---------- 地圖 ---------- */
 export function mapView(state) {
   const filter = state.filter || "all";
-  const sunStops = S.stops.filter(s => s.lat != null && isPlace(s));
-  let visible = sunStops.filter(s => {
+  const places = S.stops.filter(isPlace);
+  const ord = s => (S.days.findIndex(d => d.date === s.day) * 1e6) + (s.plan === "rain" ? 5e5 : 0) + (s.position || 0);
+  const visible = places.filter(s => {
     if (filter === "all") return s.plan === "sun";
     if (filter === "food") return s.plan === "sun" && FOOD_CATS.includes(s.category);
     if (filter === "rain") return s.plan === "rain";
     return s.day === filter && s.plan === "sun";
-  });
-  const daysWithStops = S.days.filter(d => S.stops.some(s => s.day === d.date && s.plan === "sun" && s.lat != null));
+  }).sort((a, b) => ord(a) - ord(b));
+  const daysWithStops = S.days.filter(d => places.some(s => s.day === d.date && s.plan === "sun"));
   const chips = [["all", "全部"], ...daysWithStops.map(d => [d.date, `${md(d.date)} ${d.title || ""}`.trim()]), ["food", "吃的"], ["rain", "雨天備案"]];
-  const pts = visible.length ? visible : sunStops;
-  let b = { lng0: 126.15, lng1: 126.97, lat0: 33.18, lat1: 33.58 };
-  if (pts.length) {
-    const lngs = pts.map(s => s.lng), lats = pts.map(s => s.lat), pad = 0.04;
-    b = { lng0: Math.min(...lngs) - pad, lng1: Math.max(...lngs) + pad, lat0: Math.min(...lats) - pad, lat1: Math.max(...lats) + pad };
-    const minSpan = 0.3;
-    if (b.lng1 - b.lng0 < minSpan) { const c = (b.lng0 + b.lng1) / 2; b.lng0 = c - minSpan / 2; b.lng1 = c + minSpan / 2; }
-    const wantLat = (b.lng1 - b.lng0) * 0.835 * 0.8;
-    if (b.lat1 - b.lat0 < wantLat) { const c = (b.lat0 + b.lat1) / 2; b.lat0 = c - wantLat / 2; b.lat1 = c + wantLat / 2; }
-  }
-  const P = makeProjection(b, 520, 22);
   const sel = visible.find(s => s.id === state.selected) || visible[0];
   const orderOf = s => stopsFor(s.day, s.plan).filter(isPlace).indexOf(s) + 1;
-  const pins = visible.map(s => {
-    const [x, y] = P.px(s.lng, s.lat);
-    const col = s.plan === "rain" ? RAIN_COLOR : dayColor(s.day);
-    return `<button type="button" class="mpin${s.id === sel?.id ? " on" : ""}" data-act="map-pick" data-id="${s.id}" aria-label="${esc(s.name)}" aria-pressed="${s.id === sel?.id}"
-      style="left:${(x / P.width * 100).toFixed(2)}%;top:${(y / P.height * 100).toFixed(2)}%;background:${col}">${s.plan === "rain" ? "雨" : orderOf(s)}</button>`;
-  }).join("");
-  const legend = (filter === "rain" ? [] : daysWithStops.filter(d => filter === "all" || filter === "food" || filter === d.date))
-    .map(d => `<div><span style="background:${dayColor(d.date)}"></span>${md(d.date)} ${esc(d.title || "")}</div>`).join("") +
-    (filter === "rain" ? `<div><span style="background:${RAIN_COLOR}"></span>雨天備案</div>` : "");
+  const isDay = S.days.some(d => d.date === filter);
   let sheet = "";
   if (sel) {
-    const d = S.days.find(x => x.date === sel.day);
     sheet = `<section class="map-sheet">
-      <div class="handle"></div>
       <p class="muted">${md(sel.day)}（${weekday(sel.day)}）${esc(sel.time || "")}・${CAT[sel.category] || ""}${sel.plan === "rain" ? "・雨天備案" : ""}</p>
       <h2>${esc(sel.name)}</h2>${sel.name_ko ? `<p class="muted" lang="ko">${esc(sel.name_ko)}</p>` : ""}
       ${sel.tips?.[0] ? `<p>${esc(sel.tips[0])}</p>` : ""}
       <div class="actions">${sel.options?.length ? naverBtn(optTarget(sel.options[0]), "btn primary grow") : navLinks(sel, true, "btn primary grow")}
-        <a class="btn grow" href="#plan" data-act="goto-stop" data-date="${sel.day}" data-id="${sel.id}" data-plan="${sel.plan}">在行程裡看</a></div>
+        <a class="btn grow" href="${gmapOpen(sel)}" target="_blank" rel="noopener">Google</a>
+        <a class="btn grow" href="#plan" data-act="goto-stop" data-date="${sel.day}" data-id="${sel.id}" data-plan="${sel.plan}">看行程</a></div>
     </section>`;
   }
+  const items = visible.map(s => {
+    const col = s.plan === "rain" ? RAIN_COLOR : dayColor(s.day);
+    return `<li><button type="button" class="gm-item" data-act="map-pick" data-id="${s.id}" aria-pressed="${s.id === sel?.id}">
+      <span class="gm-num" style="background:${col}">${s.plan === "rain" ? "雨" : orderOf(s)}</span>
+      <span class="gm-txt"><b>${esc(s.name)}</b><small>${md(s.day)} ${esc(s.time || "")}・${CAT[s.category] || ""}</small></span></button></li>`;
+  }).join("");
   return topbar("地圖", `${visible.length} 個地點`) + `<main class="page map-page">
     <div class="chips" role="group" aria-label="篩選地點">${chips.map(([k, l]) =>
       `<button type="button" class="chipbtn" data-act="map-filter" data-filter="${k}" aria-pressed="${k === filter}">${esc(l)}</button>`).join("")}</div>
-    <div class="bigmap" style="aspect-ratio:${P.width} / ${P.height}">
-      <svg viewBox="0 0 ${P.width} ${P.height}" aria-hidden="true">
-        <path class="island" d="${coastPath(P.px)}"/>
-        ${PLACE_LABELS.map(l => { const [x, y] = P.px(l.lng, l.lat); return `<text class="label" x="${x.toFixed(0)}" y="${(y + l.dy).toFixed(0)}" text-anchor="middle">${l.t}</text>`; }).join("")}
-      </svg>${pins}
-      ${legend ? `<div class="legend">${legend}</div>` : ""}
-    </div>
-    ${visible.length ? sheet : `<div class="empty"><h3>這裡還沒有地點</h3><p>有位置的站才會出現在地圖上。</p></div>`}
-    ${unplacedCard(filter)}
+    <div id="gmap-top">${sel ? gmapFrame(gmapQuery(sel), 15, `${sel.name} 的地圖`, "gmap big") : gmapFrame("濟州島", 10, "濟州島地圖", "gmap big")}</div>
+    ${sheet}
+    ${visible.length ? `<div class="section-h"><h3>${isDay ? "這天的地點" : "地點"}</h3><span>點一下換地圖</span></div>
+      <ol class="gm-list">${items}</ol>
+      ${isDay && visible.length > 1 ? `<a class="btn wide" href="${gmapRoute(visible)}" target="_blank" rel="noopener">在 Google 地圖看這天全部的點</a>` : ""}`
+      : `<div class="empty"><h3>這裡還沒有地點</h3><p>在「行程」新增一站，就會出現在這裡。</p></div>`}
   </main>`;
 }
 
@@ -572,23 +558,17 @@ export function stopSheet(s, isNew) {
       <label>名稱<input name="name" type="text" required maxlength="80" value="${esc(s.name)}" placeholder="城山日出峰"></label>
       <label>韓文名稱（導航用）<input name="name_ko" type="text" maxlength="80" value="${esc(s.name_ko || "")}" placeholder="성산일출봉" lang="ko"></label>
       <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
-        <label>從上一站開車（分鐘）<input name="drive_min" placeholder="放了位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
+        <label>從上一站開車（分鐘）<input name="drive_min" placeholder="有精確位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
       <fieldset class="loc"><legend>位置</legend>
+        <p class="muted small">地圖會用名稱在 Google 地圖找，有韓文名稱就用韓文（比較準）。找錯了就改韓文名稱，或貼 Google 地圖連結放精確位置。</p>
+        <div id="loc-preview">${gmapFrame(gmapQuery(s), 15, "位置預覽", "gmap small")}</div>
+        <p id="loc-state" class="small loc-state">${locState(s.lat)}</p>
         <div class="maplink">
-          <p class="small"><b>最快：</b>在 Google 地圖搜尋這個地方 → 分享 → 複製連結，回來按「貼上連結」。</p>
+          <p class="small"><b>要更準：</b>在 Google 地圖找到這個地方 → 分享 → 複製連結，回來按「貼上連結」。</p>
           <div class="maplink-row"><input name="maplink" type="url" inputmode="url" placeholder="https://maps.app.goo.gl/…" aria-label="Google 地圖連結" autocomplete="off">
             <button class="btn primary" type="button" data-act="pick-paste">貼上連結</button></div>
           <div id="link-status" class="small" aria-live="polite"></div>
         </div>
-        <p class="muted small">或在地圖上點一下放位置。放好後地圖和車程會跟著更新。</p>
-        <div id="picker" class="picker">${pickerHtml(s)}</div>
-        <div class="row-btns">
-          <button class="btn" type="button" data-act="pick-zoom" data-dir="in">放大</button>
-          <button class="btn" type="button" data-act="pick-zoom" data-dir="out">縮小</button>
-          <button class="btn" type="button" data-act="pick-here">我的位置</button>
-          <button class="btn" type="button" data-act="pick-clear">清除</button></div>
-        <button class="btn wide" type="button" data-act="pick-search">用名稱找位置（大景點才找得到）</button>
-        <div id="pick-results" class="pick-results" aria-live="polite"></div>
         <input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
       </fieldset>
       <label>小提醒（一行一個）<textarea name="tips" rows="3" maxlength="400">${esc((s.tips || []).join("\n"))}</textarea></label>
@@ -623,36 +603,8 @@ export function memSheet(date) {
 }
 
 /* ---------- location picker ---------- */
-const ISLAND = { lat: 33.38, lng: 126.56, span: 0.86 };
-let pickView = null;
-export function resetPicker(s) {
-  pickView = s.lat != null ? { lat: s.lat, lng: s.lng, span: 0.22 } : { ...ISLAND };
-}
-export function zoomPicker(dir, point) {
-  if (!pickView) pickView = { ...ISLAND };
-  const c = point || pickView;
-  const span = Math.min(ISLAND.span, Math.max(0.04, pickView.span * (dir === "in" ? 0.5 : 2)));
-  pickView = span >= ISLAND.span ? { ...ISLAND } : { lat: c.lat, lng: c.lng, span };
-}
-export function pickerProjection() {
-  const v = pickView || ISLAND;
-  const latSpan = v.span * 0.835 * 0.62;
-  return makeProjection({ lng0: v.lng - v.span / 2, lng1: v.lng + v.span / 2, lat0: v.lat - latSpan / 2, lat1: v.lat + latSpan / 2 }, 520, 0);
-}
-export function pickerHtml(s, point) {
-  if (!pickView) resetPicker(s);
-  const P = pickerProjection();
-  const p = point || (s.lat != null ? { lat: s.lat, lng: s.lng } : null);
-  const others = S.stops.filter(x => x.day === s.day && x.plan === s.plan && x.id !== s.id && x.lat != null && isPlace(x));
-  const big = pickView.span < 0.3;
-  const pin = p ? (() => { const [x, y] = P.px(p.lng, p.lat); return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><path d="M0 0c-6-9-12-14-12-22a12 12 0 0 1 24 0c0 8-6 13-12 22z" fill="#C25F0C" stroke="#fff" stroke-width="2.5"/><circle cy="-22" r="4.5" fill="#fff"/></g>`; })() : "";
-  return `<svg viewBox="0 0 ${P.width} ${P.height}" role="img" aria-label="點一下地圖放位置">
-    <rect width="${P.width}" height="${P.height}" fill="#D3E2E5"/>
-    <path d="${coastPath(P.px)}" fill="#F3F5F1" stroke="#B7C7C6" stroke-width="1.5"/>
-    ${PLACE_LABELS.map(l => { const [x, y] = P.px(l.lng, l.lat); return `<text x="${x.toFixed(0)}" y="${(y + l.dy).toFixed(0)}" text-anchor="middle" font-size="${big ? 17 : 15}" fill="#5F676B">${l.t}</text>`; }).join("")}
-    ${others.map(o => { const [x, y] = P.px(o.lng, o.lat); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#2B3036" stroke="#fff" stroke-width="2"/>`; }).join("")}
-    ${pin}
-  </svg>${p ? "" : `<p class="picker-hint">點地圖放位置</p>`}`;
+export function locState(lat) {
+  return lat != null && lat !== "" ? `📍 已放精確位置 <button class="link-btn" type="button" data-act="pick-clear">改回用名稱找</button>` : "用名稱在 Google 地圖找";
 }
 
 /* ---------- stays & trip info ---------- */
@@ -671,22 +623,3 @@ export function driverSheet(name, address) {
   return `<div class="driver"><p class="muted">請載我到這個地址</p><p class="driver-ko" lang="ko">이 주소로 가 주세요</p>
     <b lang="ko">${esc(address)}</b>${name ? `<p class="driver-name">${esc(name)}</p>` : ""}</div>`;
 }
-
-export function pickResultsHtml(list, err) {
-  if (err) return `<p class="muted small">${esc(err)}</p>`;
-  if (!list.length) return `<p class="muted small">找不到。試試改用韓文名稱，或直接在地圖上點。</p>`;
-  return `<p class="muted small">選一個（資料來自 OpenStreetMap，可能不完整）：</p>` + list.map((r, i) =>
-    `<button class="pick-hit" type="button" data-act="pick-hit" data-lat="${r.lat}" data-lng="${r.lon}"><b>${esc(r.name || r.display_name.split(",")[0])}</b><small>${esc(r.display_name.split(",").slice(1, 3).join("・"))}</small></button>`).join("");
-}
-
-function unplacedCard(filter) {
-  const list = S.stops.filter(s => isPlace(s) && s.lat == null && (
-    filter === "all" ? s.plan === "sun" : filter === "rain" ? s.plan === "rain" : filter === "food" ? s.plan === "sun" && FOOD_CATS.includes(s.category) : s.day === filter && s.plan === "sun"))
-    .sort((a, b) => (a.day + (a.time || "")).localeCompare(b.day + (b.time || "")));
-  if (!list.length) return "";
-  return `<section class="card unplaced"><h3>還沒放位置（${list.length} 站）</h3>
-    <p class="muted small">這些站沒有位置，所以不在地圖上，也算不出車程。${S.mode === "synced" ? "點「放位置」補上。" : "加入旅行後可以補上。"}</p>
-    <ul>${list.map(s => `<li><span><b>${md(s.day)} ${esc(s.time || "")}</b>${esc(s.name)}</span>
-      ${S.mode === "synced" ? `<button class="btn" type="button" data-act="edit-stop" data-id="${s.id}">放位置</button>` : ""}</li>`).join("")}</ul></section>`;
-}
-

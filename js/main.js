@@ -2,7 +2,7 @@
 import * as store from "./store.js";
 import { S } from "./store.js";
 import * as V from "./views.js";
-import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate } from "./util.js";
+import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce } from "./util.js";
 
 const app = document.getElementById("app");
 const state = {
@@ -154,29 +154,12 @@ document.addEventListener("click", e => {
       pendingJump = id;
       if (state.tab === "plan") { e.preventDefault(); render(); }
       break;
-    case "edit-stop": { const s = S.stops.find(x => x.id === id); if (s) { editingStop = s; pickPoint = null; V.resetPicker(s); openSheet(V.stopSheet(s, false)); } break; }
+    case "edit-stop": { const s = S.stops.find(x => x.id === id); if (s) { editingStop = s; openSheet(V.stopSheet(s, false)); } break; }
     case "new-stop": {
       const tpl = store.newStopTemplate(el.dataset.date, el.dataset.plan);
-      pendingNew = tpl; editingStop = tpl; pickPoint = null; V.resetPicker(tpl); openSheet(V.stopSheet(tpl, true)); break;
+      pendingNew = tpl; editingStop = tpl; openSheet(V.stopSheet(tpl, true)); break;
     }
-    case "pick-zoom": V.zoomPicker(el.dataset.dir, currentPick()); redrawPicker(); break;
     case "pick-clear": setPick(null); break;
-    case "pick-search": {
-      const f = sheetBody.querySelector("form[data-act=save-stop]");
-      const q = (f.name_ko.value || f.name.value).trim();
-      const box = document.getElementById("pick-results");
-      if (!q) { box.innerHTML = V.pickResultsHtml([], "先填名稱或韓文名稱"); break; }
-      if (Date.now() - lastSearch < 1500) break; // OpenStreetMap allows at most one search per second
-      lastSearch = Date.now();
-      el.textContent = "搜尋中…"; el.disabled = true;
-      const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=kr&bounded=1" +
-        "&viewbox=126.10,33.62,127.00,33.10&accept-language=ko&q=" + encodeURIComponent(q);
-      fetch(url).then(r => { if (!r.ok) throw 0; return r.json(); })
-        .then(list => { box.innerHTML = V.pickResultsHtml(list); })
-        .catch(() => { box.innerHTML = V.pickResultsHtml([], "現在搜尋不到（可能沒網路），請直接在地圖上點。"); })
-        .finally(() => { el.textContent = "用名稱找位置"; el.disabled = false; });
-      break;
-    }
     case "pick-paste": {
       const f = sheetBody.querySelector("form[data-act=save-stop]");
       const typed = f.maplink.value.trim();
@@ -186,20 +169,6 @@ document.addEventListener("click", e => {
         .catch(() => { f.maplink.focus(); linkStatus("讀不到剪貼簿，請長按上面的框框選「貼上」"); });
       break;
     }
-    case "pick-hit": {
-      const p = { lat: +(+el.dataset.lat).toFixed(5), lng: +(+el.dataset.lng).toFixed(5) };
-      V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p);
-      document.getElementById("pick-results").innerHTML = `<p class="muted small">已放好，可以再點地圖微調。</p>`;
-      break;
-    }
-    case "pick-here":
-      if (!navigator.geolocation) { toast("這個瀏覽器不能取得位置"); break; }
-      el.textContent = "定位中…";
-      navigator.geolocation.getCurrentPosition(
-        pos => { el.textContent = "我的位置"; const p = { lat: +pos.coords.latitude.toFixed(5), lng: +pos.coords.longitude.toFixed(5) }; V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p); },
-        () => { el.textContent = "我的位置"; toast("拿不到位置，請允許定位或改在地圖上點"); },
-        { enableHighAccuracy: true, timeout: 10000 });
-      break;
     case "copy-to-rain": {
       const date = el.dataset.date;
       const sun = V.stopsFor(date, "sun");
@@ -219,7 +188,8 @@ document.addEventListener("click", e => {
       guard(async () => { await store.deleteStop(id); closeSheet(); toast("已刪除"); }); break;
     case "edit-day": { const d = S.days.find(x => x.date === el.dataset.date); openSheet(V.daySheet(d)); break; }
     case "map-filter": state.map.filter = el.dataset.filter; state.map.selected = null; render(); break;
-    case "map-pick": state.map.selected = id; render(); break;
+    case "map-pick": state.map.selected = id; render(); document.getElementById("gmap-top")?.scrollIntoView({ block: "start", behavior: "smooth" }); break;
+    case "map-day": e.preventDefault(); state.map.filter = el.dataset.date; state.map.selected = null; location.hash = "map"; break;
     case "list-tab": state.list.tab = el.dataset.tab; render(); break;
     case "claim": guard(() => store.updateCheck(id, { assignee: store.myId() })); break;
     case "unclaim": {
@@ -261,11 +231,11 @@ async function resolveLink(text) {
     const f = sheetBody.querySelector("form[data-act=save-stop]");
     if (!f) return;
     const p = { lat: r.lat, lng: r.lng };
-    V.zoomPicker("in", p); V.zoomPicker("in", p); setPick(p);
+    setPick(p);
     const nm = (r.name || "").trim();
     if (nm && !f.name.value.trim()) f.name.value = nm;
     if (nm && /[\uac00-\ud7a3]/.test(nm) && !f.name_ko.value.trim()) f.name_ko.value = nm;
-    linkStatus(`放好了${nm ? `：${nm}` : ""}。不對的話可以在地圖上點一下微調。`, true);
+    linkStatus(`放好了${nm ? `：${nm}` : ""}，地圖已更新。`, true);
     f.maplink.value = "";
   } catch (e) {
     const f = sheetBody.querySelector("form[data-act=save-stop]");
@@ -279,34 +249,27 @@ document.addEventListener("input", e => {
 });
 
 let pendingNew = null;
-let lastSearch = 0;
-let editingStop = null, pickPoint = null;
-function currentPick() {
-  const f = sheetBody.querySelector("form[data-act=save-stop]");
-  if (!f) return null;
-  const lat = parseFloat(f.lat.value), lng = parseFloat(f.lng.value);
-  return isNaN(lat) ? null : { lat, lng };
-}
+let editingStop = null;
 function setPick(p) {
   const f = sheetBody.querySelector("form[data-act=save-stop]");
   if (!f) return;
   f.lat.value = p ? p.lat : ""; f.lng.value = p ? p.lng : "";
-  pickPoint = p;
-  redrawPicker();
+  const st = document.getElementById("loc-state");
+  if (st) st.innerHTML = V.locState(p ? p.lat : null);
+  updatePreview();
 }
-function redrawPicker() {
-  const box = document.getElementById("picker");
-  if (box && editingStop) box.innerHTML = V.pickerHtml({ ...editingStop, lat: null, lng: null }, currentPick());
+// The preview shows what Google finds: exact spot if set, otherwise the name.
+function updatePreview() {
+  const f = sheetBody.querySelector("form[data-act=save-stop]");
+  const box = document.getElementById("loc-preview");
+  if (!f || !box) return;
+  const lat = parseFloat(f.lat.value), lng = parseFloat(f.lng.value);
+  const q = V.gmapQuery({ name: f.name.value, name_ko: f.name_ko.value, lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng });
+  const fr = box.querySelector("iframe"), src = V.gmapSrc(q, 15);
+  if (fr && fr.src !== src) fr.src = src;
 }
-document.addEventListener("click", e => {
-  const svg = e.target.closest("#picker svg");
-  if (!svg) return;
-  const r = svg.getBoundingClientRect();
-  const P = V.pickerProjection();
-  const x = (e.clientX - r.left) / r.width * P.width, y = (e.clientY - r.top) / r.height * P.height;
-  const [lat, lng] = P.ll(x, y);
-  setPick({ lat: +lat.toFixed(5), lng: +lng.toFixed(5) });
-});
+const previewSoon = debounce(updatePreview, 900);
+document.addEventListener("input", e => { if (e.target.closest("form[data-act=save-stop]") && /^(name|name_ko)$/.test(e.target.name)) previewSoon(); });
 
 /* ---------- long-press a stop to drag it (edit mode) ---------- */
 // Touch: hold 0.4s without moving, then drag. Mouse: press and drag on a card.
