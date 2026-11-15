@@ -268,6 +268,8 @@ async function resolveLink(text) {
     linkStatus(`放好了${nm ? `：${nm}` : ""}。不對的話可以在地圖上點一下微調。`, true);
     f.maplink.value = "";
   } catch (e) {
+    const f = sheetBody.querySelector("form[data-act=save-stop]");
+    if (f && e.placeName && !f.name.value.trim()) f.name.value = e.placeName;
     linkStatus(e.message || "抓不到位置");
   } finally { linkBusy = false; }
 }

@@ -372,27 +372,40 @@ export async function photoUrls(paths) {
 }
 
 /* ---------- map link → coordinates ---------- */
+// The Supabase function only opens the link (short links need a server); all reading happens here,
+// so it can be improved without redeploying the function.
 const KR = (lat, lng) => lat > 32.8 && lat < 38.9 && lng > 124 && lng < 131.5;
-// Full links and plain "33.24, 126.41" text are read right here; short share links go through the Supabase function.
+const r5 = n => +(+n).toFixed(5);
+const dec = t => { try { return decodeURIComponent(t); } catch { return t.replace(/%2C/gi, ","); } };
+const unesc = t => t.replace(/\\u003d/gi, "=").replace(/\\u0026/gi, "&").replace(/\\u002F/gi, "/").replace(/\\\//g, "/").replace(/&amp;/g, "&");
 export function coordsInText(text) {
-  let t = text; try { t = decodeURIComponent(text); } catch {}
-  const pats = [/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /[?&](?:q|query|ll|center|destination)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
-    /@(-?\d+\.\d+),(-?\d+\.\d+)/, /[?&]lat=(-?\d+\.\d+)&lng=(-?\d+\.\d+)/, /^\s*\(?(-?\d{2}\.\d{3,})\s*[,，\s]\s*(-?\d{3}\.\d{3,})\)?\s*$/];
-  for (const re of pats) { const m = t.match(re); if (m && KR(+m[1], +m[2])) return { lat: +(+m[1]).toFixed(5), lng: +(+m[2]).toFixed(5) }; }
-  const n = t.match(/[?&]lng=(-?\d+\.\d+)&lat=(-?\d+\.\d+)/);
-  if (n && KR(+n[2], +n[1])) return { lat: +(+n[2]).toFixed(5), lng: +(+n[1]).toFixed(5) };
+  const t = dec(unesc(text));
+  const pairs = [/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /[?&](?:q|query|ll|center|destination|daddr)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/,
+    /@(-?\d+\.\d+),(-?\d+\.\d+)/, /[?&]lat=(-?\d+\.\d+)&lng=(-?\d+\.\d+)/, /center=(-?\d+\.\d+)(?:%2C|,)(-?\d+\.\d+)/,
+    /\[null,null,(3[3-8]\.\d{3,}),(12[4-9]\.\d{3,}|13[01]\.\d{3,})\]/,
+    /^\s*\(?(-?\d{2}\.\d{3,})\s*[,，\s]\s*(-?\d{3}\.\d{3,})\)?\s*$/];
+  for (const re of pairs) { const m = t.match(re); if (m && KR(+m[1], +m[2])) return { lat: r5(m[1]), lng: r5(m[2]) }; }
+  const swapped = [/[?&]lng=(-?\d+\.\d+)&lat=(-?\d+\.\d+)/, /"x"\s*:\s*"?(\d{3}\.\d+)"?\s*,\s*"y"\s*:\s*"?(\d{2}\.\d+)/,
+    /APP_INITIALIZATION_STATE=\[\[\[-?\d+\.?\d*,(-?\d+\.\d+),(-?\d+\.\d+)\]/];
+  for (const re of swapped) { const m = t.match(re); if (m && KR(+m[2], +m[1])) return { lat: r5(m[2]), lng: r5(m[1]) }; }
   return null;
 }
-export async function placeFromLink(text) {
-  const local = coordsInText(text.trim());
-  if (local) {
-    const g = text.match(/\/maps\/place\/([^/@?]+)/);
-    let name = ""; if (g) { try { name = decodeURIComponent(g[1].replace(/\+/g, " ")); } catch {} }
-    return { ...local, name };
-  }
-  if (!/https?:\/\//.test(text)) throw new Error("貼上的不是地圖連結");
-  if (!sb || S.mode !== "synced") throw new Error("要先加入行程、有網路才能用連結找位置");
-  const { data, error } = await sb.functions.invoke("place-from-link", { body: { url: text } });
+function nameIn(url, html = "") {
+  const g = url.match(/\/maps\/place\/([^/@?]+)/);
+  if (g) return dec(g[1].replace(/\+/g, " "));
+  const q = url.match(/[?&]q=([^&]+)/);
+  if (q && !/^-?\d+\.\d+,/.test(dec(q[1]))) return dec(q[1].replace(/\+/g, " ")).split(",")[0].trim();
+  const og = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/) || html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/);
+  if (og) return og[1].replace(/\s*[-·|:]\s*(Google\s*(地圖|Maps)|네이버.*|NAVER.*)$/i, "").trim();
+  return "";
+}
+// A Google Maps address hidden inside a page (scripts, links, meta refresh).
+function mapsUrlIn(html) {
+  const m = unesc(html).match(/https?:\/\/(?:www\.|maps\.)?google\.[a-z.]+\/maps[^"'<>\s\\]*|https?:\/\/maps\.google\.[a-z.]+\/[^"'<>\s\\]*/);
+  return m ? m[0] : null;
+}
+async function openLink(url, ua) {
+  const { data, error } = await sb.functions.invoke("place-from-link", { body: { url, ua } });
   if (error) {
     const st = error.context?.status;
     let body = null;
@@ -405,8 +418,46 @@ export async function placeFromLink(text) {
     else if (!msg) msg = `抓不到位置（錯誤 ${st}${raw ? "：" + raw : ""}）`;
     throw new Error(msg);
   }
-  if (!data || data.lat == null) throw new Error("抓不到位置（回傳是空的）");
-  return data;
+  return data || {};
+}
+export async function placeFromLink(text) {
+  text = text.trim();
+  const direct = coordsInText(text);
+  if (direct) return { ...direct, name: nameIn(text) };
+  const link = (text.match(/https?:\/\/[^\s"'<>]+/) || [])[0];
+  if (!link) throw new Error("貼上的不是地圖連結");
+  if (!sb || S.mode !== "synced") throw new Error("要先加入行程、有網路才能用連結找位置");
+  const tried = [];
+  let name = "";
+  const look = (r) => {
+    tried.push(`${(r.url || "").replace(/^https:\/\//, "").slice(0, 32)}·${r.status}${r.html ? "·" + Math.round(r.html.length / 1000) + "k" : ""}`);
+    const all = [r.url || "", ...(r.hops || [])];
+    if (!name) name = all.map(u => nameIn(u)).find(Boolean) || nameIn("", r.html || "") || nameIn(mapsUrlIn(r.html || "") || "");
+    for (const u of all) { const c = coordsInText(u); if (c) return c; }
+    return r.html ? coordsInText(r.html) : null;
+  };
+  let r = await openLink(link, "desktop");
+  let c = look(r);
+  // Short link answered with a page instead of a redirect: find the real map address in it, or ask again as a plain client.
+  if (!c && r.html) { const inner = mapsUrlIn(r.html); if (inner) { name = name || nameIn(inner); c = coordsInText(inner); if (!c) { r = await openLink(inner, "desktop"); c = look(r); } } }
+  if (!c && /goo\.gl|naver\.me/.test(link)) { r = await openLink(link, "curl"); c = look(r); if (!c && r.html) { const inner = mapsUrlIn(r.html); if (inner) { name = name || nameIn(inner); c = coordsInText(inner) || look(await openLink(inner, "desktop")); } } }
+  // Google search-style link (?q=…&ftid=…): open the full Maps page for it.
+  if (!c && /google\./.test(r.url || "")) {
+    const u = new URL(r.url), q = u.searchParams.get("q"), ftid = u.searchParams.get("ftid");
+    if (q || ftid) {
+      const p = new URL("https://www.google.com/maps"); if (q) p.searchParams.set("q", q); if (ftid) p.searchParams.set("ftid", ftid); p.searchParams.set("hl", "zh-TW");
+      c = look(await openLink(p.href, "desktop"));
+    }
+  }
+  // Naver place link: the place page has the coordinates.
+  const nv = !c && (r.url || "").match(/place\/(\d{5,})/);
+  if (nv) c = look(await openLink(`https://m.place.naver.com/place/${nv[1]}/home`, "mobile"));
+  if (!c) {
+    const e = new Error(`找不到座標，可以改在地圖上點。若要回報給 Claude：${tried.join(" → ")}`);
+    e.placeName = name;
+    throw e;
+  }
+  return { ...c, name };
 }
 
 export function myId() { return userId; }
