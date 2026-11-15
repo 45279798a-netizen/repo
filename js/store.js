@@ -374,6 +374,7 @@ export async function photoUrls(paths) {
 /* ---------- map link → coordinates ---------- */
 // The Supabase function only opens the link (short links need a server); all reading happens here,
 // so it can be improved without redeploying the function.
+const APP_V = "13.4";
 const KR = (lat, lng) => lat > 32.8 && lat < 38.9 && lng > 124 && lng < 131.5;
 const r5 = n => +(+n).toFixed(5);
 const dec = t => { try { return decodeURIComponent(t); } catch { return t.replace(/%2C/gi, ","); } };
@@ -442,7 +443,9 @@ export async function placeFromLink(text) {
   if (!sb || S.mode !== "synced") throw new Error("要先加入行程、有網路才能用連結找位置");
   const tried = [];
   let name = "";
+  const seen = [];
   const look = (r) => {
+    if (r.html) seen.push(r.html.slice(0, 300000));
     tried.push(`${(r.url || "").replace(/^https:\/\//, "").slice(0, 32)}·${r.status}${r.html ? "·" + Math.round(r.html.length / 1000) + "k" : ""}`);
     const all = [r.url || "", ...(r.hops || [])];
     if (!name) name = all.map(u => nameIn(u)).find(Boolean) || nameIn("", r.html || "") || nameIn(mapsUrlIn(r.html || "") || "");
@@ -462,11 +465,23 @@ export async function placeFromLink(text) {
       c = look(await openLink(p.href, "desktop"));
     }
   }
+  // Google place id (…!1s0x…:0x… or ftid=0x…:0x…): the second number is the place's CID; Google can open a place by CID.
+  if (!c) {
+    const pool = [r.url || "", ...(r.hops || []), ...seen].join(" ");
+    const f = unesc(pool).match(/(?:!1s|ftid=)(0x[0-9a-f]+)(?::|%3A)(0x[0-9a-f]+)/i);
+    if (f) {
+      const cid = BigInt(f[2]).toString();
+      for (const u of [`https://maps.google.com/?cid=${cid}&hl=zh-TW`, `https://www.google.com/maps?cid=${cid}&hl=zh-TW`]) {
+        c = look(await openLink(u, "desktop"));
+        if (c) break;
+      }
+    }
+  }
   // Naver place link: the place page has the coordinates.
   const nv = !c && (r.url || "").match(/place\/(\d{5,})/);
   if (nv) c = look(await openLink(`https://m.place.naver.com/place/${nv[1]}/home`, "mobile"));
   if (!c) {
-    const e = new Error(`找不到座標，可以改在地圖上點。若要回報給 Claude：${tried.join(" → ")}`);
+    const e = new Error(`找不到座標，可以改在地圖上點。若要回報給 Claude（v${APP_V}）：${tried.join(" → ")}`);
     e.placeName = name;
     throw e;
   }
