@@ -76,7 +76,9 @@ function navLinks(s, compact, cls = "btn primary") {
   const t = stopTarget(s);
   return naverBtn(t, cls, s.extra?.search_q ? "找地點" : "導航") + (compact ? "" : kakaoBtn(t));
 }
-const optTarget = o => ({ query: o.q || o.name_ko, name: o.name_ko || o.name });
+const optTarget = o => ({ query: o.q || o.name_ko || o.name, name: o.name_ko || o.name });
+// The restaurant picked on the day (stored by name), or null.
+export function chosenOpt(s) { const c = s.extra?.chosen; return c ? (s.options || []).find(o => o.name === c) || null : null; }
 
 /* ---------- weather card ---------- */
 export function weatherCard(day, w) {
@@ -151,13 +153,13 @@ export function todayView() {
     const sun = sunTimes(day.date, pt.lat, pt.lng);
     const w = cachedWeather(day.date);
     if (next) {
-      const opt = next.options?.[0];
+      const opt = chosenOpt(next) || next.options?.[0];
       body += `<section class="next-card">
         <svg class="art" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
         <div class="next-body">
           <div class="next-meta"><span class="pill">下一站</span><b>${esc(next.time || "")}</b>${next.drive_min ? `<span>・開車約 ${next.drive_min} 分</span>` : ""}</div>
           <h2>${esc(next.name)}</h2>
-          ${opt ? `<p>${esc(opt.name)}${next.options.length > 1 ? ` 等 ${next.options.length} 家` : ""}</p>` : next.name_ko ? `<p lang="ko">${esc(next.name_ko)}</p>` : ""}
+          ${opt ? `<p>${esc(opt.name)}${next.options.length > 1 && !chosenOpt(next) ? ` 等 ${next.options.length} 家` : ""}</p>` : next.name_ko ? `<p lang="ko">${esc(next.name_ko)}</p>` : ""}
           <div class="actions">${opt ? naverBtn(optTarget(opt), "btn primary grow") : navLinks(next, true, "btn primary grow")}
             <button class="btn grow" type="button" data-act="check" data-id="${next.id}" data-date="${day.date}">去過了</button></div>
         </div></section>`;
@@ -275,12 +277,18 @@ function stopRow(day, s, i, num, nextIdx) {
     sunsetBlock = `<div class="sunset-time"><b>${hhmm(set)}</b><span>日落・${hhmm(set - 20)} 前到，最美的是日落後 15 分鐘</span></div>`;
   }
   const wd = wdNum(day.date);
-  const opts = (s.options || []).map(o => {
+  const chosen = chosenOpt(s);
+  const canPick = S.mode === "synced" && (s.options || []).length > 1;
+  const opts = (s.options || []).map((o, k) => {
     const closed = (o.closed || []).includes(wd);
-    return `<li class="opt${closed ? " is-closed" : ""}"><div class="opt-name">${esc(o.name)}</div>
-      <div class="opt-hours">${closed ? `<b class="bad">${WEEK[wd]}公休</b>　` : ""}${esc(o.hours)}${o.verified ? "" : `<span class="unv">待確認</span>`}</div>
+    const on = chosen && chosen.name === o.name;
+    const navOk = o.name !== "改在機場吃" && (o.q || o.name_ko || o.name);
+    return `<li class="opt${closed ? " is-closed" : ""}${on ? " is-chosen" : chosen ? " not-chosen" : ""}"><div class="opt-name">${on ? "✓ " : ""}${esc(o.name)}</div>
+      ${o.name_ko && o.name_ko !== o.name ? `<div class="opt-hours" lang="ko">${esc(o.name_ko)}</div>` : ""}
+      ${o.hours || closed ? `<div class="opt-hours">${closed ? `<b class="bad">${WEEK[wd]}公休</b>　` : ""}${esc(o.hours || "")}${o.verified === false && o.hours ? `<span class="unv">待確認</span>` : ""}</div>` : ""}
       ${o.note ? `<div class="opt-note">${esc(o.note)}</div>` : ""}
-      ${o.name_ko && o.name !== "改在機場吃" ? `<div class="opt-act">${naverBtn(optTarget(o), "btn primary", "Naver 導航")}${kakaoBtn(optTarget(o))}</div>` : ""}</li>`;
+      ${navOk || canPick ? `<div class="opt-act">${navOk ? naverBtn(optTarget(o), "btn primary", "Naver 導航") + `<a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((o.q || o.name_ko || o.name) + " 제주")}" target="_blank" rel="noopener">Google</a>` : ""}
+        ${canPick ? `<button class="btn${on ? " on" : ""}" type="button" data-act="choose-opt" data-id="${s.id}" data-k="${k}" aria-pressed="${!!on}">${on ? "已選這家" : "就吃這家"}</button>` : ""}</div>` : ""}</li>`;
   }).join("");
   const tips = (s.tips || []).filter(t => !(sunset && /日落約/.test(t)));
   const editor = s.updated_by ? memberById(s.updated_by) : null;
@@ -298,7 +306,7 @@ function stopRow(day, s, i, num, nextIdx) {
       ${s.extra?.warn === "tight" ? `<p class="warn">⚠ 到機場的時間偏緊</p>` : ""}
       ${sunsetBlock}
       ${tips.length ? `<ul class="tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
-      ${opts ? `<p class="opt-h">挑一家</p><ul class="opts">${opts}</ul>` : ""}
+      ${opts ? `<p class="opt-h">${chosen ? `決定吃：${esc(chosen.name)}` : `${s.options.length} 家選一家`}</p><ul class="opts">${opts}</ul>` : ""}
       ${(nav || !move) ? `<div class="actions">${nav}${move ? "" : `<button class="btn check" type="button" data-act="check" data-id="${s.id}" data-date="${day.date}" aria-pressed="${done}">${done ? "✓ 去過了" : "去過了"}</button>`}</div>` : ""}
       ${editor && editor.user_id !== myId() && s.updated_at ? `<p class="edited-by">${esc(editor.display_name)} 改過</p>` : ""}
     </div></li>`;
@@ -335,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "14";
+export const APP_VERSION = "14.1";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -365,7 +373,7 @@ export function mapView(state) {
       <p class="muted">${md(sel.day)}（${weekday(sel.day)}）${esc(sel.time || "")}・${CAT[sel.category] || ""}${sel.plan === "rain" ? "・雨天備案" : ""}</p>
       <h2>${esc(sel.name)}</h2>${sel.name_ko ? `<p class="muted" lang="ko">${esc(sel.name_ko)}</p>` : ""}
       ${sel.tips?.[0] ? `<p>${esc(sel.tips[0])}</p>` : ""}
-      <div class="actions">${sel.options?.length ? naverBtn(optTarget(sel.options[0]), "btn primary grow") : navLinks(sel, true, "btn primary grow")}
+      <div class="actions">${sel.options?.length ? naverBtn(optTarget(chosenOpt(sel) || sel.options[0]), "btn primary grow") : navLinks(sel, true, "btn primary grow")}
         <a class="btn grow" href="${gmapOpen(sel)}" target="_blank" rel="noopener">Google</a>
         <a class="btn grow" href="#plan" data-act="goto-stop" data-date="${sel.day}" data-id="${sel.id}" data-plan="${sel.plan}">看行程</a></div>
     </section>`;
@@ -572,7 +580,11 @@ export function stopSheet(s, isNew) {
         <input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
       </fieldset>
       <label>小提醒（一行一個）<textarea name="tips" rows="3" maxlength="400">${esc((s.tips || []).join("\n"))}</textarea></label>
-      ${s.options?.length ? `<p class="muted small">這站的餐廳選項（${s.options.length} 家）會保留，這裡不能改。</p>` : ""}
+      <fieldset class="opt-edit-box"><legend>候選餐廳（到時候再選）</legend>
+        <p class="muted small">放兩家以上，當天在行程裡按「就吃這家」決定。只有一家就留空，用上面的名稱就好。</p>
+        <div id="opt-rows">${(s.options || []).map((o, k) => optEditRow(o, k)).join("")}</div>
+        <button class="btn wide" type="button" data-act="add-opt">${icon("plus")}加一家候選</button>
+      </fieldset>
       <button class="btn primary wide" type="submit">儲存</button>
       ${isNew ? "" : `<div class="row-btns">
         <button class="btn" type="button" data-act="move-stop" data-id="${s.id}" data-dir="-1">${icon("up")}往前</button>
@@ -622,4 +634,18 @@ function stayCard(date) {
 export function driverSheet(name, address) {
   return `<div class="driver"><p class="muted">請載我到這個地址</p><p class="driver-ko" lang="ko">이 주소로 가 주세요</p>
     <b lang="ko">${esc(address)}</b>${name ? `<p class="driver-name">${esc(name)}</p>` : ""}</div>`;
+}
+
+let optSeq = 100;
+export function optEditRow(o = {}, orig = -1) {
+  const k = optSeq++;
+  return `<div class="opt-edit" data-orig="${orig}">
+    <div class="opt-edit-h"><b>候選</b><button class="link-btn danger" type="button" data-act="del-opt">移除</button></div>
+    <label>名稱<input name="o_name_${k}" type="text" maxlength="80" value="${esc(o.name || "")}" placeholder="例：한림칼국수（海螺刀削麵）"></label>
+    <label>韓文名稱（導航用）<input name="o_ko_${k}" type="text" maxlength="80" lang="ko" value="${esc(o.name_ko || "")}" placeholder="한림칼국수"></label>
+    <label>營業時間<input name="o_hours_${k}" type="text" maxlength="80" value="${esc(o.hours || "")}" placeholder="10:00–20:00"></label>
+    <div class="closed-days" role="group" aria-label="公休日"><span class="small muted">公休</span>${WEEK.map((w, d) =>
+      `<label class="day-chk"><input type="checkbox" name="o_closed_${k}" value="${d}"${(o.closed || []).includes(d) ? " checked" : ""}><span>${w}</span></label>`).join("")}</div>
+    <label>備註<input name="o_note_${k}" type="text" maxlength="120" value="${esc(o.note || "")}" placeholder="招牌菜、要不要排隊"></label>
+  </div>`;
 }

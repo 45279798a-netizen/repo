@@ -160,6 +160,20 @@ document.addEventListener("click", e => {
       pendingNew = tpl; editingStop = tpl; openSheet(V.stopSheet(tpl, true)); break;
     }
     case "pick-clear": setPick(null); break;
+    case "add-opt": {
+      const box = document.getElementById("opt-rows");
+      box.insertAdjacentHTML("beforeend", V.optEditRow());
+      box.lastElementChild.querySelector("input")?.focus();
+      break;
+    }
+    case "del-opt": el.closest(".opt-edit")?.remove(); break;
+    case "choose-opt": {
+      const s = S.stops.find(x => x.id === id); if (!s) break;
+      const o = s.options?.[Number(el.dataset.k)]; if (!o) break;
+      const same = s.extra?.chosen === o.name;
+      guard(async () => { await store.saveStop({ ...s, extra: { ...(s.extra || {}), chosen: same ? null : o.name } }); toast(same ? "取消選擇" : `決定吃 ${o.name}`); });
+      break;
+    }
     case "pick-paste": {
       const f = sheetBody.querySelector("form[data-act=save-stop]");
       const typed = f.maplink.value.trim();
@@ -469,6 +483,20 @@ document.addEventListener("submit", e => {
       lat, lng, extra,
       tips: String(fd.get("tips") || "").split("\n").map(t => t.trim()).filter(Boolean)
     };
+    // Candidate restaurants: keep fields we don't edit (search words, checked flag) from the original.
+    const oldOpts = base.options || [];
+    const opts = [...form.querySelectorAll(".opt-edit")].map(row => {
+      const v = n => (row.querySelector(`[name^="o_${n}_"]`)?.value || "").trim();
+      const name = v("name"), ko = v("ko");
+      if (!name && !ko) return null;
+      const prev = oldOpts[Number(row.dataset.orig)] || {};
+      const o = { ...prev, name: name || ko, name_ko: ko || null, hours: v("hours"), note: v("note"),
+        closed: [...row.querySelectorAll('[name^="o_closed_"]:checked')].map(x => Number(x.value)) };
+      if (prev.name_ko !== o.name_ko || prev.name !== o.name) { delete o.q; if (o.hours !== prev.hours) delete o.verified; }
+      return o;
+    }).filter(Boolean);
+    stop.options = opts.length ? opts : null;
+    if (stop.extra.chosen && !opts.some(o => o.name === stop.extra.chosen)) stop.extra.chosen = null;
     if (!stop.name) return;
     busy(true);
     const changed = placeAndEstimate({ ...stop }, isNew).map(s => s.id === stop.id ? s : { ...s });
