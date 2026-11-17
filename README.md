@@ -19,9 +19,6 @@
 第一次設定：在 Supabase 開啟匿名登入（Authentication → Sign In / Providers → Allow anonymous sign-ins），
 再把 [`supabase/setup.sql`](supabase/setup.sql) 裡的通關碼改掉，貼到 SQL Editor 執行。
 
-用名稱自動找位置（Google）：在 Google Cloud 開啟「Places API (New)」並建立 API 金鑰，
-到 Supabase → Edge Functions → Secrets 新增 `GOOGLE_PLACES_KEY`。沒設定時會改用免費的 OpenStreetMap 資料（小店常找不到）。
-
 貼 Google 地圖連結找位置：要在 Supabase 加一個小功能（只要做一次）。
 Edge Functions → Deploy a new function → Via Editor，名稱填 `place-from-link`，
 把 [`supabase/functions/place-from-link/index.ts`](supabase/functions/place-from-link/index.ts) 的內容整個貼上 → Deploy。

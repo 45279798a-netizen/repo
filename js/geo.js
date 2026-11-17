@@ -1,5 +1,5 @@
-// Automatic location lookup. Google Places (through our Supabase function) when it is set up;
-// otherwise free OpenStreetMap data (Nominatim, then Photon), which misses many small shops.
+// Free automatic location lookup from OpenStreetMap data (Nominatim, then Photon).
+// Good for sights, beaches, oreums and well-known shops; small shops are often missing.
 const BOX = { w: 126.10, s: 33.10, e: 127.00, n: 33.62 };
 const inJeju = (lat, lng) => lat > BOX.s && lat < BOX.n && lng > BOX.w && lng < BOX.e;
 // Words that are not a place on their own.
@@ -58,33 +58,8 @@ async function photon(q) {
   }));
 }
 
-let google = null, googleOff = false;
-export function setGoogle(fn) { google = fn; }
-export const googleReady = () => !!google && !googleOff;
-const cache = new Map();
-async function viaGoogle(stop) {
-  const qs = [stop.extra?.search_q, stop.name_ko, stop.name].map(q => String(q || "").trim()).filter((q, i, a) => q.length >= 2 && !GENERIC.test(q) && a.indexOf(q) === i).slice(0, 2);
-  for (const q of qs) {
-    let places = cache.get(q);
-    if (!places) { places = await google(q); cache.set(q, places); }
-    if (places.length) {
-      const [p] = places;
-      return { lat: p.lat, lng: p.lng, label: p.name, address: p.address, src: "google", alts: places.slice(1, 5) };
-    }
-  }
-  return null;
-}
-
-// Returns { lat, lng, label, src } or null.
+// Returns { lat, lng, label } or null. Only accepts a hit whose name matches what we searched.
 export async function autoLocate(stop) {
-  if (google && !googleOff) {
-    try { return await viaGoogle(stop); }
-    catch (e) { if (e.nokey) googleOff = true; else if (!e.offline) throw e; }
-  }
-  return await viaOsm(stop);
-}
-// Free data: only accepts a hit whose name matches what we searched.
-async function viaOsm(stop) {
   const qs = queriesFor(stop);
   let failed = 0;
   for (const src of [nominatim, photon]) {
@@ -92,7 +67,7 @@ async function viaOsm(stop) {
       let hits;
       try { hits = await src(q); } catch { failed++; continue; }
       const hit = hits.find(h => inJeju(h.lat, h.lng) && h.names.some(n => similar(n, q)));
-      if (hit) return { lat: +hit.lat.toFixed(5), lng: +hit.lng.toFixed(5), label: hit.label || q, src: "auto" };
+      if (hit) return { lat: +hit.lat.toFixed(5), lng: +hit.lng.toFixed(5), label: hit.label || q };
     }
   }
   if (failed && failed === qs.length * 2) throw new Error("offline");

@@ -1,6 +1,4 @@
-// Two jobs for the trip app:
-// 1. { action: "search", q }: Google Places text search inside Jeju (needs the GOOGLE_PLACES_KEY secret).
-// 2. { url }: opens a shared map link (Google Maps / Naver Map) and returns the page it lands on.
+// Opens a shared map link (Google Maps / Naver Map) for the trip app and returns the page it lands on.
 // Short links like maps.app.goo.gl can only be opened from a server; the app reads the coordinates itself,
 // so fixes to the reading logic don't need this function to be deployed again.
 // Deploy: Supabase dashboard → Edge Functions → Deploy a new function → Via Editor → name "place-from-link",
@@ -41,39 +39,11 @@ async function signedIn(req: Request): Promise<boolean> {
   return r.ok;
 }
 
-// Google Places Text Search (New), limited to Jeju. The key stays here on the server.
-async function search(q: string): Promise<Response> {
-  const key = Deno.env.get("GOOGLE_PLACES_KEY");
-  if (!key) return json({ error: "nokey" }, 501);
-  q = q.trim().slice(0, 120);
-  if (q.length < 2) return json({ places: [] });
-  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": key,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
-    },
-    body: JSON.stringify({
-      textQuery: q, languageCode: "zh-TW", regionCode: "KR", pageSize: 5,
-      locationRestriction: { rectangle: { low: { latitude: 33.10, longitude: 126.10 }, high: { latitude: 33.62, longitude: 127.00 } } },
-    }),
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) return json({ error: `Google 搜尋失敗（${r.status}）：${String(data?.error?.message || "").slice(0, 120)}` }, 502);
-  const places = (data.places || []).map((p: any) => ({
-    id: p.id, name: p.displayName?.text || "", address: p.formattedAddress || "",
-    lat: +(+p.location?.latitude).toFixed(5), lng: +(+p.location?.longitude).toFixed(5),
-  })).filter((p: any) => Number.isFinite(p.lat));
-  return json({ places });
-}
-
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (!(await signedIn(req))) return json({ error: "要先加入行程才能用" }, 401);
-  let body: { url?: string; ua?: string; action?: string; q?: string } = {};
+  let body: { url?: string; ua?: string } = {};
   try { body = await req.json(); } catch { /* empty */ }
-  if (body.action === "search") return await search(String(body.q || ""));
   const found = String(body.url || "").match(/https?:\/\/[^\s"'<>]+/);
   if (!found) return json({ error: "沒有看到連結" }, 400);
   let url: URL;
