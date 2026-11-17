@@ -3,7 +3,8 @@ import * as store from "./store.js";
 import { S } from "./store.js";
 import * as V from "./views.js";
 import * as ov from "./ovmap.js";
-import { autoLocate } from "./geo.js";
+import { autoLocate, setGoogle } from "./geo.js";
+setGoogle(q => store.googleSearch(q));
 import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce } from "./util.js";
 
 const app = document.getElementById("app");
@@ -180,10 +181,16 @@ document.addEventListener("click", e => {
       const f = sheetBody.querySelector("form[data-act=save-stop]");
       if (f && el.dataset.wrong) f.dataset.noauto = "1"; // don't search again for this name
       setPick(null);
+      if (el.dataset.wrong && document.getElementById("loc-alts")?.innerHTML.trim()) { document.getElementById("loc-state").textContent = "已清除，可以從下面選其他結果。"; break; }
       if (el.dataset.wrong) document.getElementById("loc-state").textContent = "已清除。可以改韓文名稱再找，或貼 Google 地圖連結。";
       break;
     }
     case "auto-geo-all": autoGeoAll(el); break;
+    case "pick-alt": {
+      setPick({ lat: +el.dataset.lat, lng: +el.dataset.lng }, "google", el.dataset.label);
+      document.getElementById("loc-alts").innerHTML = "";
+      break;
+    }
     case "add-opt": {
       const box = document.getElementById("opt-rows");
       box.insertAdjacentHTML("beforeend", V.optEditRow());
@@ -303,7 +310,7 @@ function setPick(p, geo = "", label = "") {
 let autoRun = 0;
 async function autoFill(f) {
   if (!f || f.dataset.noauto === "1") return;
-  if (f.lat.value && f.geo.value !== "auto") return;
+  if (f.lat.value && !["auto", "google"].includes(f.geo.value)) return;
   const stop = { name: f.name.value, name_ko: f.name_ko.value, extra: { search_q: editingStop?.extra?.search_q } };
   if (!stop.name.trim() && !stop.name_ko.trim()) return;
   const run = ++autoRun;
@@ -312,9 +319,14 @@ async function autoFill(f) {
   let hit = null, offline = false;
   try { hit = await autoLocate(stop); } catch { offline = true; }
   if (run !== autoRun || !f.isConnected) return;
-  if (hit) setPick({ lat: hit.lat, lng: hit.lng }, "auto", hit.label);
+  if (hit) {
+    setPick({ lat: hit.lat, lng: hit.lng }, hit.src, hit.label);
+    const box = document.getElementById("loc-alts");
+    if (box) box.innerHTML = V.altsHtml(hit);
+  }
   else {
-    if (f.geo.value === "auto") setPick(null);
+    if (["auto", "google"].includes(f.geo.value)) setPick(null);
+    const box = document.getElementById("loc-alts"); if (box) box.innerHTML = "";
     if (st) st.textContent = offline ? "現在連不到地圖資料，等一下再試" : "自動找不到這個地方：試試改韓文名稱，或貼 Google 地圖連結";
   }
   return hit;
@@ -338,7 +350,7 @@ async function autoGeoAll(btn) {
     if (!hit) continue;
     const cur = S.stops.find(x => x.id === s.id);
     if (!cur || cur.lat != null) continue;
-    const stop = { ...cur, lat: hit.lat, lng: hit.lng, extra: { ...(cur.extra || {}), approx: true, geo: "auto", geo_label: hit.label } };
+    const stop = { ...cur, lat: hit.lat, lng: hit.lng, extra: { ...(cur.extra || {}), approx: hit.src !== "google", geo: hit.src, geo_label: hit.label } };
     try { await store.saveStops(placeAndEstimate(stop, false).map(x => ({ ...x }))); found++; } catch {}
   }
   const left = todo.length - found;
@@ -556,9 +568,11 @@ document.addEventListener("submit", e => {
     }
     const typedDrive = num("drive_min");
     const extra = { ...(base.extra || {}) };
-    if (lat !== base.lat || lng !== base.lng) extra.approx = lat != null;
-    extra.geo = lat != null ? String(fd.get("geo") || "") || extra.geo || null : null;
-    extra.geo_label = extra.geo === "auto" ? String(fd.get("geo_label") || "") : null;
+    const geo = lat != null ? String(fd.get("geo") || "") || extra.geo || null : null;
+    // Google results and pasted links are exact spots; the free lookup is only roughly right.
+    if (lat !== base.lat || lng !== base.lng) extra.approx = lat != null && !["google", "link"].includes(geo);
+    extra.geo = geo;
+    extra.geo_label = ["auto", "google"].includes(geo) ? String(fd.get("geo_label") || "") : null;
     if (typedDrive != null && typedDrive !== base.drive_min) extra.drive_auto = false;
     if (typedDrive == null) extra.drive_auto = true;
     const stop = {

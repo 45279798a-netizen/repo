@@ -434,6 +434,19 @@ async function openLink(url, ua) {
   }
   return data || {};
 }
+// Google Places search through the Supabase function. Throws {nokey} when the key isn't set up yet.
+export async function googleSearch(q) {
+  if (!sb || S.mode !== "synced") { const e = new Error("offline"); e.offline = true; throw e; }
+  const { data, error } = await sb.functions.invoke("place-from-link", { body: { action: "search", q } });
+  if (error) {
+    let body = null; try { body = await error.context.json(); } catch {}
+    const e = new Error(body?.error || "Google 搜尋失敗");
+    if (body?.error === "nokey" || error.context?.status === 501) e.nokey = true;
+    if (!error.context?.status) e.offline = true;
+    throw e;
+  }
+  return data?.places || [];
+}
 export async function placeFromLink(text) {
   text = text.trim();
   const direct = coordsInText(text);

@@ -343,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "15.1";
+export const APP_VERSION = "16";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -583,9 +583,9 @@ export function stopSheet(s, isNew) {
       <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
         <label>從上一站開車（分鐘）<input name="drive_min" placeholder="有精確位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
       <fieldset class="loc"><legend>位置</legend>
-        <p class="muted small">打好名稱會自動找位置，有韓文名稱比較容易找到。小店常常找不到，那就貼 Google 地圖連結。</p>
+        <p class="muted small">打好名稱會自動找位置。找錯了可以選其他結果，或貼 Google 地圖連結。</p>
         <div id="loc-preview">${gmapFrame(gmapQuery(s), 15, "位置預覽", "gmap small")}</div>
-        <p id="loc-state" class="small loc-state" aria-live="polite">${locState(s.lat, s.extra?.geo, s.extra?.geo_label)}</p>
+        <p id="loc-state" class="small loc-state" aria-live="polite">${locState(s.lat, s.extra?.geo, s.extra?.geo_label)}</p><div id="loc-alts"></div>
         <div class="maplink">
           <p class="small"><b>要更準：</b>在 Google 地圖找到這個地方 → 分享 → 複製連結，回來按「貼上連結」。</p>
           <div class="maplink-row"><input name="maplink" type="url" inputmode="url" placeholder="https://maps.app.goo.gl/…" aria-label="Google 地圖連結" autocomplete="off">
@@ -633,6 +633,7 @@ export function memSheet(date) {
 export function locState(lat, geo, label) {
   if (lat == null || lat === "") return "還沒有精確位置：打好名稱會自動找";
   if (geo === "auto") return `📍 自動找到：${esc(label || "")} <button class="link-btn" type="button" data-act="pick-clear" data-wrong="1">不是這個</button>`;
+  if (geo === "google") return `📍 Google 找到：<b>${esc(label || "")}</b> <button class="link-btn" type="button" data-act="pick-clear" data-wrong="1">不是這個</button>`;
   return `📍 已放精確位置 <button class="link-btn" type="button" data-act="pick-clear">清除</button>`;
 }
 
@@ -665,4 +666,10 @@ export function optEditRow(o = {}, orig = -1) {
       `<label class="day-chk"><input type="checkbox" name="o_closed_${k}" value="${d}"${(o.closed || []).includes(d) ? " checked" : ""}><span>${w}</span></label>`).join("")}</div>
     <label>備註<input name="o_note_${k}" type="text" maxlength="120" value="${esc(o.note || "")}" placeholder="招牌菜、要不要排隊"></label>
   </div>`;
+}
+
+export function altsHtml(hit) {
+  if (!hit || !hit.alts?.length) return "";
+  return `<p class="small muted">${hit.address ? `${esc(hit.address)}。` : ""}不是這家的話，選其他結果：</p><div class="pick-alts">${hit.alts.map(a =>
+    `<button type="button" class="pick-alt" data-act="pick-alt" data-lat="${a.lat}" data-lng="${a.lng}" data-label="${esc(a.name)}"><b>${esc(a.name)}</b><small>${esc(a.address)}</small></button>`).join("")}</div>`;
 }
