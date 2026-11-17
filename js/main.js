@@ -3,6 +3,7 @@ import * as store from "./store.js";
 import { S } from "./store.js";
 import * as V from "./views.js";
 import * as ov from "./ovmap.js";
+import { autoLocate } from "./geo.js";
 import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce } from "./util.js";
 
 const app = document.getElementById("app");
@@ -175,7 +176,14 @@ document.addEventListener("click", e => {
       const tpl = store.newStopTemplate(el.dataset.date, el.dataset.plan);
       pendingNew = tpl; editingStop = tpl; openSheet(V.stopSheet(tpl, true)); break;
     }
-    case "pick-clear": setPick(null); break;
+    case "pick-clear": {
+      const f = sheetBody.querySelector("form[data-act=save-stop]");
+      if (f && el.dataset.wrong) f.dataset.noauto = "1"; // don't search again for this name
+      setPick(null);
+      if (el.dataset.wrong) document.getElementById("loc-state").textContent = "已清除。可以改韓文名稱再找，或貼 Google 地圖連結。";
+      break;
+    }
+    case "auto-geo-all": autoGeoAll(el); break;
     case "add-opt": {
       const box = document.getElementById("opt-rows");
       box.insertAdjacentHTML("beforeend", V.optEditRow());
@@ -263,7 +271,7 @@ async function resolveLink(text) {
     const f = sheetBody.querySelector("form[data-act=save-stop]");
     if (!f) return;
     const p = { lat: r.lat, lng: r.lng };
-    setPick(p);
+    setPick(p, "link");
     const nm = (r.name || "").trim();
     if (nm && !f.name.value.trim()) f.name.value = nm;
     if (nm && /[\uac00-\ud7a3]/.test(nm) && !f.name_ko.value.trim()) f.name_ko.value = nm;
@@ -282,13 +290,60 @@ document.addEventListener("input", e => {
 
 let pendingNew = null;
 let editingStop = null;
-function setPick(p) {
+function setPick(p, geo = "", label = "") {
   const f = sheetBody.querySelector("form[data-act=save-stop]");
   if (!f) return;
   f.lat.value = p ? p.lat : ""; f.lng.value = p ? p.lng : "";
+  f.geo.value = p ? geo : ""; f.geo_label.value = p ? label : "";
   const st = document.getElementById("loc-state");
-  if (st) st.innerHTML = V.locState(p ? p.lat : null);
+  if (st) st.innerHTML = V.locState(p ? p.lat : null, geo, label);
   updatePreview();
+}
+// Automatic lookup while typing the name (only when there's no exact spot from a link).
+let autoRun = 0;
+async function autoFill(f) {
+  if (!f || f.dataset.noauto === "1") return;
+  if (f.lat.value && f.geo.value !== "auto") return;
+  const stop = { name: f.name.value, name_ko: f.name_ko.value, extra: { search_q: editingStop?.extra?.search_q } };
+  if (!stop.name.trim() && !stop.name_ko.trim()) return;
+  const run = ++autoRun;
+  const st = document.getElementById("loc-state");
+  if (st) st.textContent = "自動找位置中…";
+  let hit = null, offline = false;
+  try { hit = await autoLocate(stop); } catch { offline = true; }
+  if (run !== autoRun || !f.isConnected) return;
+  if (hit) setPick({ lat: hit.lat, lng: hit.lng }, "auto", hit.label);
+  else {
+    if (f.geo.value === "auto") setPick(null);
+    if (st) st.textContent = offline ? "現在連不到地圖資料，等一下再試" : "自動找不到這個地方：試試改韓文名稱，或貼 Google 地圖連結";
+  }
+  return hit;
+}
+const autoSoon = debounce(() => autoFill(sheetBody.querySelector("form[data-act=save-stop]")), 1300);
+document.addEventListener("input", e => {
+  const f = e.target.closest("form[data-act=save-stop]");
+  if (f && /^(name|name_ko)$/.test(e.target.name)) { delete f.dataset.noauto; autoSoon(); }
+});
+
+// Map tab: look up every stop on screen that has no location yet.
+async function autoGeoAll(btn) {
+  const todo = V.mapVisible(state.map.filter || "all").filter(s => !V.onMap(s));
+  if (!todo.length || btn.disabled) return;
+  btn.disabled = true;
+  let found = 0, k = 0;
+  for (const s of todo) {
+    btn.textContent = `找第 ${++k}/${todo.length} 站：${s.name}`;
+    let hit = null;
+    try { hit = await autoLocate(s); } catch { toast("現在連不到地圖資料，等一下再試"); break; }
+    if (!hit) continue;
+    const cur = S.stops.find(x => x.id === s.id);
+    if (!cur || cur.lat != null) continue;
+    const stop = { ...cur, lat: hit.lat, lng: hit.lng, extra: { ...(cur.extra || {}), approx: true, geo: "auto", geo_label: hit.label } };
+    try { await store.saveStops(placeAndEstimate(stop, false).map(x => ({ ...x }))); found++; } catch {}
+  }
+  const left = todo.length - found;
+  toast(found ? `找到 ${found} 站${left ? `，${left} 站找不到（貼 Google 連結補）` : ""}` : "都找不到，這些站要貼 Google 地圖連結");
+  render();
 }
 // The preview shows what Google finds: exact spot if set, otherwise the name.
 function updatePreview() {
@@ -489,10 +544,21 @@ document.addEventListener("submit", e => {
     const base = S.stops.find(x => x.id === id) || pendingNew;
     const num = k => { const v = String(fd.get(k) ?? "").trim(); return v === "" ? null : Number(v); };
     const isNew = !S.stops.some(x => x.id === id);
-    const lat = num("lat"), lng = num("lng");
+    const isNewStop = () => isNew;
+    let lat = num("lat"), lng = num("lng");
+    const renamed = String(fd.get("name")).trim() !== (base.name || "") || String(fd.get("name_ko") || "").trim() !== (base.name_ko || "");
+    if (lat == null && (isNewStop() || renamed) && fd.get("category") !== "transport" && form.dataset.noauto !== "1" && !form.dataset.looked) {
+      // Saved before the typing lookup finished: look it up now (once).
+      form.dataset.looked = "1";
+      busy(true);
+      autoFill(form).finally(() => { busy(false); form.requestSubmit(); });
+      return;
+    }
     const typedDrive = num("drive_min");
     const extra = { ...(base.extra || {}) };
     if (lat !== base.lat || lng !== base.lng) extra.approx = lat != null;
+    extra.geo = lat != null ? String(fd.get("geo") || "") || extra.geo || null : null;
+    extra.geo_label = extra.geo === "auto" ? String(fd.get("geo_label") || "") : null;
     if (typedDrive != null && typedDrive !== base.drive_min) extra.drive_auto = false;
     if (typedDrive == null) extra.drive_auto = true;
     const stop = {

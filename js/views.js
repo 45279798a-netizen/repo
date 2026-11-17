@@ -343,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "15";
+export const APP_VERSION = "15.1";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -401,7 +401,8 @@ export function mapView(state) {
       </div>
       <p id="ov-me" class="ov-me" hidden></p>
     </div>
-    ${missing.length ? `<p class="callout soft small">${icon("info")}<span>${missing.length} 站沒有精確位置，所以沒標在地圖上：${missing.slice(0, 4).map(s => esc(s.name)).join("、")}${missing.length > 4 ? "…" : ""}。開「編輯」按鉛筆、貼 Google 地圖連結就會出現。</span></p>` : ""}
+    ${missing.length ? `<p class="callout soft small">${icon("info")}<span>${missing.length} 站沒有位置，所以沒標在地圖上：${missing.slice(0, 4).map(s => esc(s.name)).join("、")}${missing.length > 4 ? "…" : ""}。</span></p>
+      ${S.mode === "synced" ? `<button class="btn wide" type="button" data-act="auto-geo-all">${icon("map")}自動幫這 ${missing.length} 站找位置</button>` : ""}` : ""}
     ${mapSheet(sel)}
     ${visible.length ? `<div class="section-h"><h3>${isDay ? "這天的地點" : "地點"}</h3><span>點一下看那一站</span></div>
       <ol class="gm-list">${items}</ol>
@@ -582,16 +583,16 @@ export function stopSheet(s, isNew) {
       <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
         <label>從上一站開車（分鐘）<input name="drive_min" placeholder="有精確位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
       <fieldset class="loc"><legend>位置</legend>
-        <p class="muted small">地圖會用名稱在 Google 地圖找，有韓文名稱就用韓文（比較準）。找錯了就改韓文名稱，或貼 Google 地圖連結放精確位置。</p>
+        <p class="muted small">打好名稱會自動找位置，有韓文名稱比較容易找到。小店常常找不到，那就貼 Google 地圖連結。</p>
         <div id="loc-preview">${gmapFrame(gmapQuery(s), 15, "位置預覽", "gmap small")}</div>
-        <p id="loc-state" class="small loc-state">${locState(s.lat)}</p>
+        <p id="loc-state" class="small loc-state" aria-live="polite">${locState(s.lat, s.extra?.geo, s.extra?.geo_label)}</p>
         <div class="maplink">
           <p class="small"><b>要更準：</b>在 Google 地圖找到這個地方 → 分享 → 複製連結，回來按「貼上連結」。</p>
           <div class="maplink-row"><input name="maplink" type="url" inputmode="url" placeholder="https://maps.app.goo.gl/…" aria-label="Google 地圖連結" autocomplete="off">
             <button class="btn primary" type="button" data-act="pick-paste">貼上連結</button></div>
           <div id="link-status" class="small" aria-live="polite"></div>
         </div>
-        <input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
+        <input type="hidden" name="geo" value="${esc(s.extra?.geo || "")}"><input type="hidden" name="geo_label" value="${esc(s.extra?.geo_label || "")}"><input type="hidden" name="lat" value="${s.lat ?? ""}"><input type="hidden" name="lng" value="${s.lng ?? ""}">
       </fieldset>
       <label>小提醒（一行一個）<textarea name="tips" rows="3" maxlength="400">${esc((s.tips || []).join("\n"))}</textarea></label>
       <fieldset class="opt-edit-box"><legend>候選餐廳（到時候再選）</legend>
@@ -629,8 +630,10 @@ export function memSheet(date) {
 }
 
 /* ---------- location picker ---------- */
-export function locState(lat) {
-  return lat != null && lat !== "" ? `📍 已放精確位置 <button class="link-btn" type="button" data-act="pick-clear">改回用名稱找</button>` : "用名稱在 Google 地圖找";
+export function locState(lat, geo, label) {
+  if (lat == null || lat === "") return "還沒有精確位置：打好名稱會自動找";
+  if (geo === "auto") return `📍 自動找到：${esc(label || "")} <button class="link-btn" type="button" data-act="pick-clear" data-wrong="1">不是這個</button>`;
+  return `📍 已放精確位置 <button class="link-btn" type="button" data-act="pick-clear">清除</button>`;
 }
 
 /* ---------- stays & trip info ---------- */
