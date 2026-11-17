@@ -2,6 +2,7 @@
 import * as store from "./store.js";
 import { S } from "./store.js";
 import * as V from "./views.js";
+import * as ov from "./ovmap.js";
 import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce } from "./util.js";
 
 const app = document.getElementById("app");
@@ -69,10 +70,25 @@ function afterRender() {
       imgs.forEach(i => { const u = map[i.dataset.photo]; if (u) i.src = u; });
     }).catch(() => {});
   }
+  if (state.tab === "map") ov.mount(state.map.filter || "all", state.map.selected, id => pickMapStop(id, "pin"));
+  else ov.unmount();
   if (pendingJump) { const id = pendingJump; pendingJump = null; setTimeout(() => jump(id), 60); }
 }
 
 let pendingJump = null;
+
+// Picking a stop on the map tab updates the card and pins in place, so the map keeps its zoom.
+function pickMapStop(id, from) {
+  const s = S.stops.find(x => x.id === id);
+  if (!s) return;
+  state.map.selected = id;
+  const old = document.getElementById("map-sheet");
+  if (old) old.outerHTML = V.mapSheet(s);
+  document.querySelectorAll(".gm-item").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === id)));
+  ov.select(id);
+  if (from === "list") document.querySelector(".ovmap-wrap")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  else document.getElementById("map-sheet")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
 function jump(id) {
   const el = document.getElementById("stop-" + id);
   if (!el) return;
@@ -202,7 +218,9 @@ document.addEventListener("click", e => {
       guard(async () => { await store.deleteStop(id); closeSheet(); toast("已刪除"); }); break;
     case "edit-day": { const d = S.days.find(x => x.date === el.dataset.date); openSheet(V.daySheet(d)); break; }
     case "map-filter": state.map.filter = el.dataset.filter; state.map.selected = null; render(); break;
-    case "map-pick": state.map.selected = id; render(); document.getElementById("gmap-top")?.scrollIntoView({ block: "start", behavior: "smooth" }); break;
+    case "map-pick": pickMapStop(id, "list"); break;
+    case "ov-locate": ov.toggleLocate(); break;
+    case "ov-fit": ov.fit(); break;
     case "map-day": e.preventDefault(); state.map.filter = el.dataset.date; state.map.selected = null; location.hash = "map"; break;
     case "list-tab": state.list.tab = el.dataset.tab; render(); break;
     case "claim": guard(() => store.updateCheck(id, { assignee: store.myId() })); break;

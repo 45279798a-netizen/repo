@@ -12,6 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="濟州">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -379,6 +380,22 @@
   .day-gmap .gmap { aspect-ratio: 16 / 10; }
   .day-gmap-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .day-gmap-bar .row-btns { margin: 0; }
+  .ovmap-wrap { position: relative; margin-top: 10px; }
+  .ovmap { height: min(58vh, 460px); border-radius: 18px; overflow: hidden; background: #DDE5E4; z-index: 0; }
+  .ov-fail { padding: 24px; text-align: center; color: var(--stone); }
+  .ov-ctrl { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 500; }
+  .ov-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 20px; border: 0; background: #fff; color: var(--basalt); font: 700 13px var(--body); box-shadow: 0 2px 8px rgba(43,48,54,.22); cursor: pointer; }
+  .ov-btn svg { width: 16px; height: 16px; }
+  .ov-btn[aria-pressed="true"] { background: #2F64A8; color: #fff; }
+  .ov-me { margin: 8px 2px 0; font-size: 13px; font-weight: 700; color: #2F64A8; }
+  .ov-dist { margin: 6px 0; padding: 8px 12px; border-radius: 12px; background: #EAF0F8; color: #1F4A80; font-size: 14px; font-weight: 700; }
+  .ovpin-wrap { background: none; border: 0; }
+  .ovpin { display: grid; place-items: center; width: 30px; height: 30px; margin: 2px; border-radius: 50%; border: 2.5px solid #fff; color: #fff; font: 800 14px var(--num); box-shadow: 0 2px 6px rgba(0,0,0,.35); cursor: pointer; transition: transform .15s; }
+  .ovpin.on { transform: scale(1.3); border-color: var(--basalt); }
+  .leaflet-container { font-family: var(--body); }
+  .leaflet-control-attribution { font-size: 10px; }
+  .gm-peek { margin-top: 10px; }
+  .gm-peek summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--olle); padding: 6px 0; }
   .gm-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 6px; }
   .gm-item { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: var(--paper); border: 2px solid transparent; border-radius: 16px; padding: 10px 12px; font: inherit; color: var(--basalt); cursor: pointer; }
   .gm-item[aria-pressed="true"] { border-color: var(--tangerine); }

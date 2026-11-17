@@ -343,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "14.1";
+export const APP_VERSION = "15";
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -352,46 +352,60 @@ export function infoFooter() {
 }
 
 /* ---------- 地圖 ---------- */
-export function mapView(state) {
-  const filter = state.filter || "all";
-  const places = S.stops.filter(isPlace);
-  const ord = s => (S.days.findIndex(d => d.date === s.day) * 1e6) + (s.plan === "rain" ? 5e5 : 0) + (s.position || 0);
-  const visible = places.filter(s => {
+const mapOrd = s => (S.days.findIndex(d => d.date === s.day) * 1e6) + (s.plan === "rain" ? 5e5 : 0) + (s.position || 0);
+// Stops shown for a map filter, in trip order.
+export function mapVisible(filter = "all") {
+  return S.stops.filter(isPlace).filter(s => {
     if (filter === "all") return s.plan === "sun";
     if (filter === "food") return s.plan === "sun" && FOOD_CATS.includes(s.category);
     if (filter === "rain") return s.plan === "rain";
     return s.day === filter && s.plan === "sun";
-  }).sort((a, b) => ord(a) - ord(b));
-  const daysWithStops = S.days.filter(d => places.some(s => s.day === d.date && s.plan === "sun"));
-  const chips = [["all", "全部"], ...daysWithStops.map(d => [d.date, `${md(d.date)} ${d.title || ""}`.trim()]), ["food", "吃的"], ["rain", "雨天備案"]];
-  const sel = visible.find(s => s.id === state.selected) || visible[0];
-  const orderOf = s => stopsFor(s.day, s.plan).filter(isPlace).indexOf(s) + 1;
-  const isDay = S.days.some(d => d.date === filter);
-  let sheet = "";
-  if (sel) {
-    sheet = `<section class="map-sheet">
+  }).sort((a, b) => mapOrd(a) - mapOrd(b));
+}
+export const mapOrder = s => stopsFor(s.day, s.plan).filter(isPlace).indexOf(s) + 1;
+export const mapColor = s => s.plan === "rain" ? RAIN_COLOR : dayColor(s.day);
+export const onMap = s => s.lat != null && s.lng != null;
+export function mapSheet(sel) {
+  if (!sel) return `<section id="map-sheet" class="map-sheet" hidden></section>`;
+  return `<section id="map-sheet" class="map-sheet">
       <p class="muted">${md(sel.day)}（${weekday(sel.day)}）${esc(sel.time || "")}・${CAT[sel.category] || ""}${sel.plan === "rain" ? "・雨天備案" : ""}</p>
       <h2>${esc(sel.name)}</h2>${sel.name_ko ? `<p class="muted" lang="ko">${esc(sel.name_ko)}</p>` : ""}
+      <p id="ov-dist" class="ov-dist" hidden></p>
       ${sel.tips?.[0] ? `<p>${esc(sel.tips[0])}</p>` : ""}
       <div class="actions">${sel.options?.length ? naverBtn(optTarget(chosenOpt(sel) || sel.options[0]), "btn primary grow") : navLinks(sel, true, "btn primary grow")}
         <a class="btn grow" href="${gmapOpen(sel)}" target="_blank" rel="noopener">Google</a>
         <a class="btn grow" href="#plan" data-act="goto-stop" data-date="${sel.day}" data-id="${sel.id}" data-plan="${sel.plan}">看行程</a></div>
+      <details class="gm-peek"><summary>看 Google 地圖上的樣子</summary>${gmapFrame(gmapQuery(sel), 16, `${sel.name} 的 Google 地圖`, "gmap small")}</details>
     </section>`;
-  }
-  const items = visible.map(s => {
-    const col = s.plan === "rain" ? RAIN_COLOR : dayColor(s.day);
-    return `<li><button type="button" class="gm-item" data-act="map-pick" data-id="${s.id}" aria-pressed="${s.id === sel?.id}">
-      <span class="gm-num" style="background:${col}">${s.plan === "rain" ? "雨" : orderOf(s)}</span>
-      <span class="gm-txt"><b>${esc(s.name)}</b><small>${md(s.day)} ${esc(s.time || "")}・${CAT[s.category] || ""}</small></span></button></li>`;
-  }).join("");
+}
+export function mapView(state) {
+  const filter = state.filter || "all";
+  const places = S.stops.filter(isPlace);
+  const visible = mapVisible(filter);
+  const daysWithStops = S.days.filter(d => places.some(s => s.day === d.date && s.plan === "sun"));
+  const chips = [["all", "全部"], ...daysWithStops.map(d => [d.date, `${md(d.date)} ${d.title || ""}`.trim()]), ["food", "吃的"], ["rain", "雨天備案"]];
+  const sel = visible.find(s => s.id === state.selected) || null;
+  const isDay = S.days.some(d => d.date === filter);
+  const missing = visible.filter(s => !onMap(s));
+  const items = visible.map(s => `<li><button type="button" class="gm-item" data-act="map-pick" data-id="${s.id}" aria-pressed="${s.id === sel?.id}">
+      <span class="gm-num" style="background:${mapColor(s)}">${s.plan === "rain" ? "雨" : mapOrder(s)}</span>
+      <span class="gm-txt"><b>${esc(s.name)}</b><small>${md(s.day)} ${esc(s.time || "")}・${CAT[s.category] || ""}${onMap(s) ? "" : "・沒標在地圖上"}</small></span></button></li>`).join("");
   return topbar("地圖", `${visible.length} 個地點`) + `<main class="page map-page">
     <div class="chips" role="group" aria-label="篩選地點">${chips.map(([k, l]) =>
       `<button type="button" class="chipbtn" data-act="map-filter" data-filter="${k}" aria-pressed="${k === filter}">${esc(l)}</button>`).join("")}</div>
-    <div id="gmap-top">${sel ? gmapFrame(gmapQuery(sel), 15, `${sel.name} 的地圖`, "gmap big") : gmapFrame("濟州島", 10, "濟州島地圖", "gmap big")}</div>
-    ${sheet}
-    ${visible.length ? `<div class="section-h"><h3>${isDay ? "這天的地點" : "地點"}</h3><span>點一下換地圖</span></div>
+    <div class="ovmap-wrap">
+      <div id="ovmap" class="ovmap" role="region" aria-label="行程總覽地圖，點編號看那一站"></div>
+      <div class="ov-ctrl">
+        <button type="button" class="ov-btn" data-act="ov-locate" aria-pressed="false">${icon("nav")}<span>我的位置</span></button>
+        <button type="button" class="ov-btn" data-act="ov-fit">${icon("map")}<span>看全部</span></button>
+      </div>
+      <p id="ov-me" class="ov-me" hidden></p>
+    </div>
+    ${missing.length ? `<p class="callout soft small">${icon("info")}<span>${missing.length} 站沒有精確位置，所以沒標在地圖上：${missing.slice(0, 4).map(s => esc(s.name)).join("、")}${missing.length > 4 ? "…" : ""}。開「編輯」按鉛筆、貼 Google 地圖連結就會出現。</span></p>` : ""}
+    ${mapSheet(sel)}
+    ${visible.length ? `<div class="section-h"><h3>${isDay ? "這天的地點" : "地點"}</h3><span>點一下看那一站</span></div>
       <ol class="gm-list">${items}</ol>
-      ${isDay && visible.length > 1 ? `<a class="btn wide" href="${gmapRoute(visible)}" target="_blank" rel="noopener">在 Google 地圖看這天全部的點</a>` : ""}`
+      ${isDay && visible.length > 1 ? `<a class="btn wide" href="${gmapRoute(visible)}" target="_blank" rel="noopener">在 Google 地圖看這天的路線</a>` : ""}`
       : `<div class="empty"><h3>這裡還沒有地點</h3><p>在「行程」新增一站，就會出現在這裡。</p></div>`}
   </main>`;
 }
