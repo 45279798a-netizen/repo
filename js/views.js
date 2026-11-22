@@ -1,6 +1,6 @@
 /* Render functions. Each returns HTML for one tab or sheet. */
 import { S, memberById, myId } from "./store.js";
-import { ART } from "./art.js";
+import { ART, artSvg } from "./art.js";
 import {
   esc, toMin, hhmm, md, weekday, wdNum, kstNow, sunTimes, wmo, wxIcon, wxAdvice, cachedWeather,
   icon, CAT, CAT_GROUPS, FOOD_CATS, getDemoTime, WEEK
@@ -8,7 +8,7 @@ import {
 
 export const DAY_COLORS = ["#B4547E", "#4E8A5B", "#C25F0C", "#2F64A8", "#6B8A2E", "#8A5A2E"];
 export const RAIN_COLOR = "#6B6F8A";
-const THEMES = { dawn: "清晨抵達", oreum: "火山丘", south: "南部海岸", west: "西部夕陽" };
+const THEMES = { dawn: "清晨抵達", oreum: "火山丘", south: "南部海岸", west: "西部夕陽", ilchul: "城山日出", halla: "漢拏山初雪", eoksae: "秋天芒草", emerald: "翡翠海灘", tangerine: "橘子園", rainy: "下雨天", harbor: "夜晚港口" };
 
 /* ---------- shared bits ---------- */
 export const isPlace = s => s.category !== "transport";
@@ -343,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "16.3";
+export const APP_VERSION = "16.4";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -386,7 +386,7 @@ function printFlight(f, arr) {
     <div class="p-mut">${esc(f.airline)} ${esc(f.flight)}・${esc(f.from)} ${f.dep} → ${esc(f.to)} ${f.arr}</div></div></div>`;
 }
 // Cover art with its own gradient ids, so it renders even though the app's copy is hidden while printing.
-const printArt = theme => (ART[theme] || ART.oreum)().replace(/id="([^"]+)"/g, 'id="p-$1"').replace(/url\(#([^)]+)\)/g, "url(#p-$1)");
+const printArt = theme => artSvg(theme, "p");
 export function printDoc(o) {
   const t = S.cfg || {}, info = S.info || {};
   const days = o.scope === "all" ? S.days : S.days.filter(d => d.date === o.scope);
@@ -712,7 +712,10 @@ export function daySheet(d) {
       <label>這天叫什麼<input name="title" type="text" maxlength="12" value="${esc(d.title || "")}" placeholder="東部"></label>
       <label>一句話介紹<input name="tagline" type="text" maxlength="40" value="${esc(d.tagline || "")}" placeholder="日出、海女和牛島"></label>
       <label>雨天備案說明（選填）<input name="rain_note" type="text" maxlength="60" value="${esc(d.rain_note || "")}" placeholder="下雨改去美術館，晚餐照舊"></label>
-      <label>封面插畫<select name="theme">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}"${d.theme === k ? " selected" : ""}>${v}</option>`).join("")}</select></label>
+      <fieldset class="theme-pick"><legend>封面插畫</legend>
+        <div class="theme-grid">${Object.entries(THEMES).map(([k, v]) => `<label class="theme-opt"><input type="radio" name="theme" value="${k}"${(d.theme || "oreum") === k ? " checked" : ""}>
+          <svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${artSvg(k, "t-" + k)}</svg><span>${v}</span></label>`).join("")}</div>
+      </fieldset>
       <button class="btn primary wide" type="submit">儲存</button></form>`;
 }
 

@@ -508,6 +508,16 @@
 
 
   #print-root { display: none; }
+  .theme-pick { border: 0; padding: 0; margin: 0; }
+  .theme-pick legend { font-weight: 700; padding: 0; margin-bottom: 6px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .theme-opt { position: relative; display: block; border-radius: 14px; overflow: hidden; cursor: pointer; border: 3px solid transparent; }
+  .theme-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .theme-opt svg { display: block; width: 100%; height: auto; aspect-ratio: 400 / 230; }
+  .theme-opt span { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 8px 5px; color: #fff; font-size: 12px; font-weight: 700; background: linear-gradient(180deg, transparent, rgba(20,24,30,.6)); }
+  .theme-opt:has(input:checked) { border-color: var(--tangerine); }
+  .theme-opt:has(input:checked) span::before { content: "✓ "; }
+  .theme-opt:has(input:focus-visible) { outline: 2px solid var(--olle); outline-offset: 2px; }
   .seg-field { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
   .seg-field legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
   .radio { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 12px; background: var(--paper); font-size: 15px; cursor: pointer; }
