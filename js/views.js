@@ -255,7 +255,7 @@ export function planView(date) {
   html += `</ol>`;
   if (!list.length && !arr) html += `<div class="empty"><h3>這天還沒有行程</h3><p>${editable() ? "按下面的按鈕新增第一站。" : "加入旅行後就能新增。"}</p></div>`;
   if (editable()) html += `<button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>`;
-  html += stayCard(day.date) + `<button class="btn wide export-btn" type="button" data-act="open-export" data-date="${day.date}">${icon("list")}匯出 PDF</button>` + infoFooter() + `</main>`;
+  html += stayCard(day.date) + infoFooter() + `</main>`;
   return html;
 }
 
@@ -343,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "16.1";
+export const APP_VERSION = "16.2";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -597,6 +597,7 @@ export function meSheet() {
     <h3>一起旅行的人</h3><ul class="people">${S.members.map(m => `<li>${avatar(m, 30)}<span>${esc(m.display_name)}</span>${m.user_id === myId() ? `<small>你</small>` : ""}</li>`).join("")}</ul>
     <p class="muted">${S.mode === "synced" ? "已連線，大家的修改會馬上同步。" : "現在離線，看的是上次存下來的資料。"}</p>
     <button class="btn wide" type="button" data-act="open-info">旅行資訊</button>
+    <button class="btn wide" type="button" data-act="open-export">${icon("list")}匯出成 PDF</button>
     <button class="btn wide danger" type="button" data-act="leave">在這支手機登出</button>
     <p class="muted small">登出後要再用通關碼加入一次，你之前加的照片和心得不會不見，但會變成另一個身分。</p>`;
 }
@@ -617,7 +618,6 @@ export function infoSheet() {
   const phrases = [["這個請給我", "이거 주세요", "i-geo ju-se-yo"], ["請結帳", "계산해 주세요", "gye-san-hae ju-se-yo"], ["可以外帶嗎？", "포장 돼요?", "po-jang dwae-yo"],
     ["請不要太辣", "안 맵게 해 주세요", "an maep-ge hae ju-se-yo"], ["廁所在哪裡？", "화장실 어디예요?", "hwa-jang-sil eo-di-ye-yo"], ["謝謝", "감사합니다", "gam-sa-ham-ni-da"]];
   return `<h2>旅行資訊</h2>
-    <button class="btn wide" type="button" data-act="open-export">${icon("list")}把行程匯出成 PDF</button>
     ${synced ? `<button class="btn wide" type="button" data-act="edit-info">${icon("edit")}編輯住宿、租車和訂位代號</button>` : ""}
     <h3>住宿</h3>${stays ? `<ul class="info-list rich">${stays}</ul>` : `<p>${esc(t.lodging?.area || "待補")}</p><p class="muted small">${synced ? "按上面的「編輯」加入住宿和韓文地址，就能直接導航、給司機看。" : "加入旅行後可以填住宿和韓文地址。"}</p>`}
     <h3>租車</h3>${rentalRows.length ? `<dl class="kv">${rentalRows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}
