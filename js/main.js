@@ -535,7 +535,7 @@ document.addEventListener("submit", e => {
   const busy = on => { if (btn) { btn.disabled = on; btn.dataset.label ??= btn.textContent; btn.textContent = on ? "處理中…" : btn.dataset.label; } };
 
   if (a === "export-pdf") {
-    exportPdf({ scope: String(fd.get("scope") || "all"), rain: !!fd.get("rain"), opts: !!fd.get("opts"), info: !!fd.get("info"), list: !!fd.get("list") });
+    exportPdf({ style: String(fd.get("style") || "plain"), scope: String(fd.get("scope") || "all"), rain: !!fd.get("rain"), opts: !!fd.get("opts"), info: !!fd.get("info"), list: !!fd.get("list") });
     return;
   }
   if (a === "join") {
@@ -659,6 +659,7 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
 function exportPdf(o) {
   const root = document.getElementById("print-root");
   root.innerHTML = V.printDoc(o);
+  root.className = o.style === "fancy" ? "fancy" : "";
   closeSheet();
   const days = o.scope === "all" ? S.days : S.days.filter(d => d.date === o.scope);
   const old = document.title;

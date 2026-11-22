@@ -343,12 +343,16 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "16";
+export const APP_VERSION = "16.1";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
   return `<h2>匯出 PDF</h2>
     <form data-act="export-pdf" class="form">
+      <fieldset class="seg-field"><legend>樣式</legend>
+        <label class="radio style-pick"><input type="radio" name="style" value="plain" checked><span><b>標準</b><small>黑白為主、字多排得密，省墨、適合印出來帶著</small></span></label>
+        <label class="radio style-pick"><input type="radio" name="style" value="fancy"><span><b>美化版</b><small>彩色封面和每天的插圖，適合傳給朋友在手機上看</small></span></label>
+      </fieldset>
       <fieldset class="seg-field"><legend>要匯出哪幾天</legend>
         <label class="radio"><input type="radio" name="scope" value="all" checked> 全部 ${S.days.length} 天</label>
         ${d ? `<label class="radio"><input type="radio" name="scope" value="${d.date}"> 只有 ${md(d.date)}（${weekday(d.date)}）${esc(d.title || "")}</label>` : ""}
@@ -372,8 +376,8 @@ function printStop(s, o) {
       ${op.hours ? `<span class="p-mut">　${esc(op.hours)}</span>` : ""}${(op.closed || []).length ? `<span class="p-mut">　週${op.closed.map(c => WEEK[c]).join("、")}公休</span>` : ""}
       ${op.note ? `<div class="p-mut">${esc(op.note)}</div>` : ""}</li>`).join("")}</ul>` : "";
   const tips = (s.tips || []).filter(Boolean).slice(0, 3);
-  return `<tr class="${place ? "" : "p-move"}"><td class="p-time">${esc(s.time || "")}</td>
-    <td><div class="p-name">${esc(s.name)}${s.name_ko ? ` <span lang="ko">${esc(s.name_ko)}</span>` : ""}</div>
+  return `<tr class="${place ? "" : "p-move"}" style="--cc:var(--c-${s.category})"><td class="p-time">${esc(s.time || "")}</td>
+    <td><div class="p-name"><span class="p-catdot" aria-hidden="true"></span>${esc(s.name)}${s.name_ko ? ` <span lang="ko">${esc(s.name_ko)}</span>` : ""}</div>
       ${meta ? `<div class="p-mut">${meta}</div>` : ""}
       ${tips.length ? `<ul class="p-tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}${opts}</td></tr>`;
 }
@@ -381,19 +385,33 @@ function printFlight(f, arr) {
   return `<tr class="p-move"><td class="p-time">${arr ? f.arr : f.dep}</td><td><div class="p-name">✈ ${arr ? "抵達濟州機場" : "起飛回臺灣"}</div>
     <div class="p-mut">${esc(f.airline)} ${esc(f.flight)}・${esc(f.from)} ${f.dep} → ${esc(f.to)} ${f.arr}</div></td></tr>`;
 }
+// Cover art with its own gradient ids, so it renders even though the app's copy is hidden while printing.
+const printArt = theme => (ART[theme] || ART.oreum)().replace(/id="([^"]+)"/g, 'id="p-$1"').replace(/url\(#([^)]+)\)/g, "url(#p-$1)");
 export function printDoc(o) {
   const t = S.cfg || {}, info = S.info || {};
   const days = o.scope === "all" ? S.days : S.days.filter(d => d.date === o.scope);
   const first = S.days[0]?.date, last = S.days.at(-1)?.date;
   let h = `<header class="p-head"><h1>濟州 ${first ? md(first) : ""}–${last ? md(last).split("/").pop() : ""}</h1>
     <p class="p-mut">匯出時間 ${new Date().toLocaleString("zh-TW", { hour12: false })}${S.members.length ? `・${S.members.map(m => esc(m.display_name)).join("、")}` : ""}</p></header>`;
+  if (o.style === "fancy") {
+    const t0 = S.days[0];
+    h = `<section class="p-cover">
+      <svg class="p-cover-art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${printArt(t0?.theme || "dawn")}</svg>
+      <div class="p-cover-txt"><p class="p-kicker">JEJU ISLAND</p><h1>濟州 ${first ? md(first) : ""}–${last ? md(last).split("/").pop() : ""}</h1>
+        ${S.members.length ? `<p>${S.members.map(m => esc(m.display_name)).join("・")}</p>` : ""}</div>
+      <ol class="p-toc">${days.map(d => `<li><span class="p-dayno" style="background:${dayColor(d.date)}">DAY ${d.day}</span><b>${md(d.date)}（${weekday(d.date)}）</b>${esc(d.title || "還沒排")}<span class="p-mut">　${stopsFor(d.date, "sun").filter(isPlace).length} 站</span></li>`).join("")}</ol>
+      <ul class="p-flights">${(t.flights || []).map(x => `<li>✈ ${md(x.date)} ${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</li>`).join("")}</ul>
+    </section>`;
+  }
   days.forEach((day, i) => {
     const sun = stopsFor(day.date, "sun"), rain = stopsFor(day.date, "rain");
     const arr = (t.flights || []).find(f => f.date === day.date && f.to === "CJU");
     const dep = (t.flights || []).find(f => f.date === day.date && f.from === "CJU");
     const st = stayFor(day.date);
-    h += `<section class="p-day${i ? " p-break" : ""}">
-      <h2><span class="p-dayno" style="background:${dayColor(day.date)}">DAY ${day.day}</span>${md(day.date)}（${weekday(day.date)}）${esc(day.title || "")}</h2>
+    const banner = o.style === "fancy" ? `<div class="p-banner"><svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${printArt(day.theme)}</svg>
+      <div class="p-banner-txt"><span>DAY ${day.day}・${md(day.date)}（${weekday(day.date)}）</span><b>${esc(day.title || "還沒取名")}</b>${day.tagline ? `<small>${esc(day.tagline)}</small>` : ""}</div></div>` : "";
+    h += `<section class="p-day${i || o.style === "fancy" ? " p-break" : ""}">${banner}
+      <h2 class="p-dayh"><span class="p-dayno" style="background:${dayColor(day.date)}">DAY ${day.day}</span>${md(day.date)}（${weekday(day.date)}）${esc(day.title || "")}</h2>
       ${day.tagline ? `<p class="p-mut">${esc(day.tagline)}</p>` : ""}
       ${sun.length || arr || dep ? `<table class="p-table"><tbody>${arr ? printFlight(arr, true) : ""}${sun.map(s => printStop(s, o)).join("")}${dep ? printFlight(dep, false) : ""}</tbody></table>` : `<p class="p-mut">這天還沒排行程。</p>`}
       ${o.rain && rain.length ? `<h3>☔ 雨天備案</h3>${day.rain_note ? `<p class="p-mut">${esc(day.rain_note)}</p>` : ""}<table class="p-table"><tbody>${rain.map(s => printStop(s, o)).join("")}</tbody></table>` : ""}

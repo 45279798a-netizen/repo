@@ -511,7 +511,10 @@
   .seg-field { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
   .seg-field legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
   .radio { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 12px; background: var(--paper); font-size: 15px; cursor: pointer; }
-  .radio input { width: 20px; height: 20px; accent-color: var(--tangerine); margin: 0; }
+  .radio input { width: 20px; height: 20px; accent-color: var(--tangerine); margin: 0; flex: 0 0 auto; }
+  .style-pick { padding: 10px 12px; }
+  .style-pick span { display: grid; gap: 2px; }
+  .style-pick small { color: var(--stone); font-size: 12px; }
   .export-btn { margin-top: 14px; }
   @media print {
     @page { size: A4; margin: 12mm 12mm 14mm; }
@@ -541,7 +544,36 @@
     .p-kv { display: grid; grid-template-columns: 60pt 1fr; gap: 2pt 8pt; margin: 0; }
     .p-kv dt { color: #5d666e; } .p-kv dd { margin: 0; }
     .p-check { list-style: none; padding: 0; columns: 2; }
+    .p-catdot { display: none; }
+    #print-root.fancy { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #print-root.fancy .p-cover { position: relative; min-height: 255mm; display: flex; flex-direction: column; gap: 10mm; }
+    #print-root.fancy .p-cover-art { width: 100%; height: 110mm; border-radius: 6mm; display: block; }
+    #print-root.fancy .p-cover-txt { margin-top: -38mm; padding: 0 8mm; color: #fff; position: relative; text-shadow: 0 1pt 4pt rgba(0,0,0,.35); }
+    #print-root.fancy .p-cover-txt h1 { font-size: 34pt; margin: 0; line-height: 1.1; }
+    #print-root.fancy .p-kicker { letter-spacing: .2em; font-size: 9pt; font-weight: 800; margin: 0 0 2pt; opacity: .9; }
+    #print-root.fancy .p-toc { list-style: none; padding: 0; margin: 10mm 0 0; display: grid; gap: 6pt; font-size: 12pt; }
+    #print-root.fancy .p-toc li { display: flex; align-items: center; gap: 8pt; padding: 8pt 10pt; border-radius: 8pt; background: #F3F6F5; }
+    #print-root.fancy .p-flights { list-style: none; padding: 0; color: #5d666e; font-size: 10pt; }
+    #print-root.fancy .p-banner { position: relative; height: 52mm; border-radius: 5mm; overflow: hidden; margin-bottom: 6pt; }
+    #print-root.fancy .p-banner svg { width: 100%; height: 100%; display: block; }
+    #print-root.fancy .p-banner-txt { position: absolute; left: 0; right: 0; bottom: 0; padding: 18pt 12pt 9pt; color: #fff; display: grid; background: linear-gradient(180deg, rgba(20,24,30,0), rgba(20,24,30,.6)); }
+    #print-root.fancy .p-banner-txt span { font-size: 9pt; font-weight: 800; letter-spacing: .05em; }
+    #print-root.fancy .p-banner-txt b { font-size: 20pt; line-height: 1.2; }
+    #print-root.fancy .p-banner-txt small { font-size: 9.5pt; opacity: .95; }
+    #print-root.fancy .p-dayh { display: none; }
+    #print-root.fancy .p-day > .p-mut:first-of-type { display: none; }
+    #print-root.fancy .p-table { border-collapse: separate; border-spacing: 0 5pt; }
+    #print-root.fancy .p-table td { border-top: 0; background: #F6F8F7; }
+    #print-root.fancy .p-table td:first-child { border-radius: 6pt 0 0 6pt; border-left: 3pt solid var(--cc, #8a949b); color: #1d2126; }
+    #print-root.fancy .p-table td:last-child { border-radius: 0 6pt 6pt 0; }
+    #print-root.fancy .p-move td { background: transparent; }
+    #print-root.fancy .p-move td:first-child { border-left-color: #cfd6d5; }
+    #print-root.fancy .p-catdot { display: inline-block; width: 7pt; height: 7pt; border-radius: 50%; background: var(--cc); margin-right: 5pt; vertical-align: 1pt; }
+    #print-root.fancy .p-opts li { background: #fff; }
+    #print-root.fancy .p-stay { background: #FFF4E8; border-left: 3pt solid #EE7F1B; }
+    #print-root.fancy h3 { color: #2F64A8; }
   }
+
 </style>
 </head>
 <body>
