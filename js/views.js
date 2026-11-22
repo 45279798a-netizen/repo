@@ -255,7 +255,7 @@ export function planView(date) {
   html += `</ol>`;
   if (!list.length && !arr) html += `<div class="empty"><h3>這天還沒有行程</h3><p>${editable() ? "按下面的按鈕新增第一站。" : "加入旅行後就能新增。"}</p></div>`;
   if (editable()) html += `<button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>`;
-  html += stayCard(day.date) + infoFooter() + `</main>`;
+  html += stayCard(day.date) + `<button class="btn wide export-btn" type="button" data-act="open-export" data-date="${day.date}">${icon("list")}匯出 PDF</button>` + infoFooter() + `</main>`;
   return html;
 }
 
@@ -343,7 +343,86 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "15.2";
+export const APP_VERSION = "16";
+/* ---------- export to PDF (print layout) ---------- */
+export function exportSheet(curDate) {
+  const d = S.days.find(x => x.date === curDate);
+  return `<h2>匯出 PDF</h2>
+    <form data-act="export-pdf" class="form">
+      <fieldset class="seg-field"><legend>要匯出哪幾天</legend>
+        <label class="radio"><input type="radio" name="scope" value="all" checked> 全部 ${S.days.length} 天</label>
+        ${d ? `<label class="radio"><input type="radio" name="scope" value="${d.date}"> 只有 ${md(d.date)}（${weekday(d.date)}）${esc(d.title || "")}</label>` : ""}
+      </fieldset>
+      <fieldset class="seg-field"><legend>還要放進去</legend>
+        <label class="radio"><input type="checkbox" name="rain" checked> 雨天備案</label>
+        <label class="radio"><input type="checkbox" name="opts" checked> 餐廳候選</label>
+        <label class="radio"><input type="checkbox" name="info" checked> 旅行資訊（航班、住宿、租車、緊急電話）</label>
+        <label class="radio"><input type="checkbox" name="list"> 打包清單</label>
+      </fieldset>
+      <p class="muted small">按「匯出」後會跳出列印畫面，印表機選「<b>另存為 PDF</b>」（iPhone 是左下「分享」→ 儲存到檔案），就能存成 PDF 或傳給朋友。</p>
+      <button class="btn primary wide" type="submit">${icon("list")}匯出</button>
+    </form>`;
+}
+function printStop(s, o) {
+  const place = isPlace(s);
+  const meta = [CAT[s.category], s.duration_min ? `停留 ${s.duration_min} 分` : "", s.drive_min ? `開車 ${s.drive_min} 分` : ""].filter(Boolean).join("・");
+  const chosen = chosenOpt(s);
+  const opts = o.opts && (s.options || []).length ? `<ul class="p-opts">${s.options.map(op => `<li${chosen && chosen.name === op.name ? ' class="on"' : ""}>
+      <b>${chosen && chosen.name === op.name ? "✓ " : ""}${esc(op.name)}</b>${op.name_ko && op.name_ko !== op.name ? ` <span lang="ko">${esc(op.name_ko)}</span>` : ""}
+      ${op.hours ? `<span class="p-mut">　${esc(op.hours)}</span>` : ""}${(op.closed || []).length ? `<span class="p-mut">　週${op.closed.map(c => WEEK[c]).join("、")}公休</span>` : ""}
+      ${op.note ? `<div class="p-mut">${esc(op.note)}</div>` : ""}</li>`).join("")}</ul>` : "";
+  const tips = (s.tips || []).filter(Boolean).slice(0, 3);
+  return `<tr class="${place ? "" : "p-move"}"><td class="p-time">${esc(s.time || "")}</td>
+    <td><div class="p-name">${esc(s.name)}${s.name_ko ? ` <span lang="ko">${esc(s.name_ko)}</span>` : ""}</div>
+      ${meta ? `<div class="p-mut">${meta}</div>` : ""}
+      ${tips.length ? `<ul class="p-tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}${opts}</td></tr>`;
+}
+function printFlight(f, arr) {
+  return `<tr class="p-move"><td class="p-time">${arr ? f.arr : f.dep}</td><td><div class="p-name">✈ ${arr ? "抵達濟州機場" : "起飛回臺灣"}</div>
+    <div class="p-mut">${esc(f.airline)} ${esc(f.flight)}・${esc(f.from)} ${f.dep} → ${esc(f.to)} ${f.arr}</div></td></tr>`;
+}
+export function printDoc(o) {
+  const t = S.cfg || {}, info = S.info || {};
+  const days = o.scope === "all" ? S.days : S.days.filter(d => d.date === o.scope);
+  const first = S.days[0]?.date, last = S.days.at(-1)?.date;
+  let h = `<header class="p-head"><h1>濟州 ${first ? md(first) : ""}–${last ? md(last).split("/").pop() : ""}</h1>
+    <p class="p-mut">匯出時間 ${new Date().toLocaleString("zh-TW", { hour12: false })}${S.members.length ? `・${S.members.map(m => esc(m.display_name)).join("、")}` : ""}</p></header>`;
+  days.forEach((day, i) => {
+    const sun = stopsFor(day.date, "sun"), rain = stopsFor(day.date, "rain");
+    const arr = (t.flights || []).find(f => f.date === day.date && f.to === "CJU");
+    const dep = (t.flights || []).find(f => f.date === day.date && f.from === "CJU");
+    const st = stayFor(day.date);
+    h += `<section class="p-day${i ? " p-break" : ""}">
+      <h2><span class="p-dayno" style="background:${dayColor(day.date)}">DAY ${day.day}</span>${md(day.date)}（${weekday(day.date)}）${esc(day.title || "")}</h2>
+      ${day.tagline ? `<p class="p-mut">${esc(day.tagline)}</p>` : ""}
+      ${sun.length || arr || dep ? `<table class="p-table"><tbody>${arr ? printFlight(arr, true) : ""}${sun.map(s => printStop(s, o)).join("")}${dep ? printFlight(dep, false) : ""}</tbody></table>` : `<p class="p-mut">這天還沒排行程。</p>`}
+      ${o.rain && rain.length ? `<h3>☔ 雨天備案</h3>${day.rain_note ? `<p class="p-mut">${esc(day.rain_note)}</p>` : ""}<table class="p-table"><tbody>${rain.map(s => printStop(s, o)).join("")}</tbody></table>` : ""}
+      ${st ? `<p class="p-stay">今晚住：<b>${esc(st.name)}</b>${st.address_ko ? `　<span lang="ko">${esc(st.address_ko)}</span>` : ""}${st.phone ? `　☎ ${esc(st.phone)}` : ""}</p>` : ""}
+    </section>`;
+  });
+  if (o.info) {
+    const r = info.rental || {};
+    const rental = [["公司", r.company], ["訂位代號", r.booking], ["取車", [r.pickup_time, r.pickup_place].filter(Boolean).join("・")], ["還車", [r.return_time, r.return_place].filter(Boolean).join("・")], ["電話", r.phone], ["備註", r.note]].filter(x => x[1]);
+    const bookings = (info.bookings || []).filter(b => b.label || b.code);
+    h += `<section class="p-day p-break"><h2>旅行資訊</h2>
+      <h3>航班</h3><ul>${(t.flights || []).map(x => `<li>${md(x.date)}（${weekday(x.date)}）${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</li>`).join("")}</ul>
+      ${(info.stays || []).length ? `<h3>住宿</h3><ul>${info.stays.map(st => `<li><b>${esc(st.name)}</b>${st.check_in ? `　${md(st.check_in)} 入住${st.check_out ? `・${md(st.check_out)} 退房` : ""}` : ""}
+        ${st.address_ko ? `<div lang="ko">${esc(st.address_ko)}</div>` : ""}${st.phone ? `<div>☎ ${esc(st.phone)}</div>` : ""}${st.note ? `<div class="p-mut">${esc(st.note)}</div>` : ""}</li>`).join("")}</ul>` : ""}
+      ${rental.length ? `<h3>租車</h3><dl class="p-kv">${rental.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}
+      ${(t.transport?.docs || []).length ? `<p class="p-mut">要帶：${esc(t.transport.docs.join("、"))}。還車前要加滿油。</p>` : ""}
+      ${bookings.length ? `<h3>訂位代號</h3><dl class="p-kv">${bookings.map(b => `<dt>${esc(b.label || "")}</dt><dd><b>${esc(b.code || "")}</b></dd>`).join("")}</dl>` : ""}
+      <h3>緊急電話</h3><p>112 警察　119 火警、救護車　1330 觀光熱線（有中文）</p></section>`;
+  }
+  if (o.list) {
+    const items = S.checklist.filter(c => c.scope === "shared");
+    const groups = [...new Set(items.map(c => c.group_name || "其他"))];
+    h += `<section class="p-day p-break"><h2>打包清單</h2>${groups.map(g => `<h3>${esc(g)}</h3><ul class="p-check">${items.filter(c => (c.group_name || "其他") === g).map(c => {
+      const who = c.assignee ? memberById(c.assignee) : null;
+      return `<li>${c.done ? "☑" : "☐"} ${esc(c.text)}${who ? `<span class="p-mut">（${esc(who.display_name)}）</span>` : ""}</li>`; }).join("")}</ul>`).join("")}</section>`;
+  }
+  return h;
+}
+
 export function infoFooter() {
   const t = S.cfg || {};
   const f = (t.flights || []).map(x => `<dt>${md(x.date)}</dt><dd>${esc(x.airline)} ${esc(x.flight)}　${esc(x.from)} ${x.dep} → ${esc(x.to)} ${x.arr}</dd>`).join("");
@@ -520,6 +599,7 @@ export function infoSheet() {
   const phrases = [["這個請給我", "이거 주세요", "i-geo ju-se-yo"], ["請結帳", "계산해 주세요", "gye-san-hae ju-se-yo"], ["可以外帶嗎？", "포장 돼요?", "po-jang dwae-yo"],
     ["請不要太辣", "안 맵게 해 주세요", "an maep-ge hae ju-se-yo"], ["廁所在哪裡？", "화장실 어디예요?", "hwa-jang-sil eo-di-ye-yo"], ["謝謝", "감사합니다", "gam-sa-ham-ni-da"]];
   return `<h2>旅行資訊</h2>
+    <button class="btn wide" type="button" data-act="open-export">${icon("list")}把行程匯出成 PDF</button>
     ${synced ? `<button class="btn wide" type="button" data-act="edit-info">${icon("edit")}編輯住宿、租車和訂位代號</button>` : ""}
     <h3>住宿</h3>${stays ? `<ul class="info-list rich">${stays}</ul>` : `<p>${esc(t.lodging?.area || "待補")}</p><p class="muted small">${synced ? "按上面的「編輯」加入住宿和韓文地址，就能直接導航、給司機看。" : "加入旅行後可以填住宿和韓文地址。"}</p>`}
     <h3>租車</h3>${rentalRows.length ? `<dl class="kv">${rentalRows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}

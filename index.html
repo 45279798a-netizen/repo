@@ -506,9 +506,46 @@
   .warn.soft { background: #F2F5F4; color: var(--stone); font-weight: 500; font-size: 13px; }
   .toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 60; background: var(--basalt); color: #fff; padding: 10px 16px; border-radius: 14px; font-size: 14px; max-width: calc(100% - 32px); }
 
+
+  #print-root { display: none; }
+  .seg-field { border: 0; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
+  .seg-field legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+  .radio { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: 12px; background: var(--paper); font-size: 15px; cursor: pointer; }
+  .radio input { width: 20px; height: 20px; accent-color: var(--tangerine); margin: 0; }
+  .export-btn { margin-top: 14px; }
+  @media print {
+    @page { size: A4; margin: 12mm 12mm 14mm; }
+    html, body { background: #fff !important; }
+    body > *:not(#print-root) { display: none !important; }
+    #print-root { display: block !important; color: #1d2126; font: 10.5pt/1.5 var(--body); }
+    #print-root h1 { font-size: 20pt; margin: 0 0 2pt; }
+    #print-root h2 { font-size: 14pt; margin: 0 0 4pt; display: flex; align-items: center; gap: 8pt; }
+    #print-root h3 { font-size: 11.5pt; margin: 12pt 0 4pt; }
+    #print-root ul { margin: 2pt 0; padding-left: 14pt; }
+    .p-head { border-bottom: 1.5pt solid #1d2126; padding-bottom: 6pt; margin-bottom: 12pt; }
+    .p-dayno { color: #fff; font-size: 9pt; font-weight: 800; padding: 2pt 7pt; border-radius: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .p-break { break-before: page; }
+    .p-mut { color: #5d666e; font-size: 9pt; }
+    .p-table { width: 100%; border-collapse: collapse; margin-top: 6pt; }
+    .p-table td { border-top: .6pt solid #cfd6d5; padding: 5pt 4pt; vertical-align: top; }
+    .p-table tr { break-inside: avoid; }
+    .p-time { width: 42pt; font-weight: 800; white-space: nowrap; }
+    .p-name { font-weight: 700; font-size: 11pt; }
+    .p-name [lang=ko] { font-weight: 400; color: #5d666e; font-size: 9.5pt; }
+    .p-move .p-name { font-weight: 500; color: #5d666e; }
+    .p-tips { font-size: 9pt; color: #3a4148; padding-left: 12pt; }
+    .p-opts { list-style: none; padding: 0; margin: 4pt 0 0; display: grid; gap: 3pt; }
+    .p-opts li { border: .6pt solid #cfd6d5; border-radius: 5pt; padding: 3pt 6pt; font-size: 9.5pt; }
+    .p-opts li.on { border: 1.2pt solid #EE7F1B; }
+    .p-stay { margin-top: 8pt; padding: 6pt 8pt; background: #f2f4f3; border-radius: 6pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .p-kv { display: grid; grid-template-columns: 60pt 1fr; gap: 2pt 8pt; margin: 0; }
+    .p-kv dt { color: #5d666e; } .p-kv dd { margin: 0; }
+    .p-check { list-style: none; padding: 0; columns: 2; }
+  }
 </style>
 </head>
 <body>
+<div id="print-root" aria-hidden="true"></div>
 <div id="app"><main class="page"><p class="muted" style="padding-top:40px">載入中…</p></main></div>
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="詳細內容">

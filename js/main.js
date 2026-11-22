@@ -184,6 +184,7 @@ document.addEventListener("click", e => {
       break;
     }
     case "auto-geo-all": autoGeoAll(el); break;
+    case "open-export": openSheet(V.exportSheet(el.dataset.date || state.planDate)); break;
     case "add-opt": {
       const box = document.getElementById("opt-rows");
       box.insertAdjacentHTML("beforeend", V.optEditRow());
@@ -533,6 +534,10 @@ document.addEventListener("submit", e => {
   const btn = form.querySelector("button[type=submit]");
   const busy = on => { if (btn) { btn.disabled = on; btn.dataset.label ??= btn.textContent; btn.textContent = on ? "處理中…" : btn.dataset.label; } };
 
+  if (a === "export-pdf") {
+    exportPdf({ scope: String(fd.get("scope") || "all"), rain: !!fd.get("rain"), opts: !!fd.get("opts"), info: !!fd.get("info"), list: !!fd.get("list") });
+    return;
+  }
   if (a === "join") {
     busy(true);
     store.join(String(fd.get("name")).trim(), String(fd.get("code"))).then(() => { closeSheet(); toast("加入了，歡迎！"); })
@@ -648,4 +653,21 @@ if ("serviceWorker" in navigator && location.protocol === "https:") {
   }).catch(() => {});
   let reloaded = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+}
+
+/* ---------- export to PDF: print a clean layout, the phone saves it as PDF ---------- */
+function exportPdf(o) {
+  const root = document.getElementById("print-root");
+  root.innerHTML = V.printDoc(o);
+  closeSheet();
+  const days = o.scope === "all" ? S.days : S.days.filter(d => d.date === o.scope);
+  const old = document.title;
+  document.title = `濟州行程${o.scope === "all" ? "" : "_" + o.scope.slice(5).replace("-", "")}`; // becomes the PDF file name
+  const done = () => { document.title = old; root.innerHTML = ""; window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  // let fonts settle before the print dialog takes a snapshot
+  (document.fonts?.ready || Promise.resolve()).then(() => setTimeout(() => {
+    try { window.print(); } catch { done(); toast("這裡不能列印：請用 Chrome 或 Safari 打開網址再匯出"); }
+  }, 150));
+  if (!days.length) toast("沒有可以匯出的行程");
 }
