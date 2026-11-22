@@ -343,7 +343,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "16.2";
+export const APP_VERSION = "16.3";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -376,14 +376,14 @@ function printStop(s, o) {
       ${op.hours ? `<span class="p-mut">　${esc(op.hours)}</span>` : ""}${(op.closed || []).length ? `<span class="p-mut">　週${op.closed.map(c => WEEK[c]).join("、")}公休</span>` : ""}
       ${op.note ? `<div class="p-mut">${esc(op.note)}</div>` : ""}</li>`).join("")}</ul>` : "";
   const tips = (s.tips || []).filter(Boolean).slice(0, 3);
-  return `<tr class="${place ? "" : "p-move"}" style="--cc:var(--c-${s.category})"><td class="p-time">${esc(s.time || "")}</td>
-    <td><div class="p-name"><span class="p-catdot" aria-hidden="true"></span>${esc(s.name)}${s.name_ko ? ` <span lang="ko">${esc(s.name_ko)}</span>` : ""}</div>
+  return `<div class="p-row${place ? "" : " p-move"}" style="--cc:var(--c-${s.category})"><div class="p-time">${esc(s.time || "")}</div>
+    <div class="p-body"><div class="p-name"><span class="p-catdot" aria-hidden="true"></span>${esc(s.name)}${s.name_ko ? ` <span lang="ko">${esc(s.name_ko)}</span>` : ""}</div>
       ${meta ? `<div class="p-mut">${meta}</div>` : ""}
-      ${tips.length ? `<ul class="p-tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}${opts}</td></tr>`;
+      ${tips.length ? `<ul class="p-tips">${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}${opts}</div></div>`;
 }
 function printFlight(f, arr) {
-  return `<tr class="p-move"><td class="p-time">${arr ? f.arr : f.dep}</td><td><div class="p-name">✈ ${arr ? "抵達濟州機場" : "起飛回臺灣"}</div>
-    <div class="p-mut">${esc(f.airline)} ${esc(f.flight)}・${esc(f.from)} ${f.dep} → ${esc(f.to)} ${f.arr}</div></td></tr>`;
+  return `<div class="p-row p-move"><div class="p-time">${arr ? f.arr : f.dep}</div><div class="p-body"><div class="p-name">✈ ${arr ? "抵達濟州機場" : "起飛回臺灣"}</div>
+    <div class="p-mut">${esc(f.airline)} ${esc(f.flight)}・${esc(f.from)} ${f.dep} → ${esc(f.to)} ${f.arr}</div></div></div>`;
 }
 // Cover art with its own gradient ids, so it renders even though the app's copy is hidden while printing.
 const printArt = theme => (ART[theme] || ART.oreum)().replace(/id="([^"]+)"/g, 'id="p-$1"').replace(/url\(#([^)]+)\)/g, "url(#p-$1)");
@@ -413,8 +413,8 @@ export function printDoc(o) {
     h += `<section class="p-day${i || o.style === "fancy" ? " p-break" : ""}">${banner}
       <h2 class="p-dayh"><span class="p-dayno" style="background:${dayColor(day.date)}">DAY ${day.day}</span>${md(day.date)}（${weekday(day.date)}）${esc(day.title || "")}</h2>
       ${day.tagline ? `<p class="p-mut">${esc(day.tagline)}</p>` : ""}
-      ${sun.length || arr || dep ? `<table class="p-table"><tbody>${arr ? printFlight(arr, true) : ""}${sun.map(s => printStop(s, o)).join("")}${dep ? printFlight(dep, false) : ""}</tbody></table>` : `<p class="p-mut">這天還沒排行程。</p>`}
-      ${o.rain && rain.length ? `<h3>☔ 雨天備案</h3>${day.rain_note ? `<p class="p-mut">${esc(day.rain_note)}</p>` : ""}<table class="p-table"><tbody>${rain.map(s => printStop(s, o)).join("")}</tbody></table>` : ""}
+      ${sun.length || arr || dep ? `<div class="p-table">${arr ? printFlight(arr, true) : ""}${sun.map(s => printStop(s, o)).join("")}${dep ? printFlight(dep, false) : ""}</div>` : `<p class="p-mut">這天還沒排行程。</p>`}
+      ${o.rain && rain.length ? `<h3 class="p-rainh">☔ ${md(day.date)} 雨天備案（下雨才用）</h3>${day.rain_note ? `<p class="p-mut">${esc(day.rain_note)}</p>` : ""}<div class="p-table">${rain.map(s => printStop(s, o)).join("")}</div>` : ""}
       ${st ? `<p class="p-stay">今晚住：<b>${esc(st.name)}</b>${st.address_ko ? `　<span lang="ko">${esc(st.address_ko)}</span>` : ""}${st.phone ? `　☎ ${esc(st.phone)}` : ""}</p>` : ""}
     </section>`;
   });
