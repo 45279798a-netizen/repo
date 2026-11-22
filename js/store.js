@@ -354,6 +354,15 @@ export async function addMemory({ day, stop, note, files, onProgress }) {
   if (error) throw error;
   S.memories.unshift(data); saveCache(); emit();
 }
+// A photo for a day's cover; stored next to the trip's other photos.
+export async function uploadCover(file) {
+  requireSync();
+  const blob = await compressImage(file, 1600, 0.82);
+  const path = `${TRIP_ID}/covers/${newId()}.jpg`;
+  const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: false });
+  if (error) throw new Error("照片上傳失敗：" + error.message);
+  return path;
+}
 export async function deleteMemory(m) {
   requireSync();
   S.memories = S.memories.filter(x => x.id !== m.id); emit();

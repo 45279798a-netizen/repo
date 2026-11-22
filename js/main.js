@@ -64,13 +64,7 @@ function afterRender() {
     const d = S.days.find(x => x.date === kstNow().date);
     if (d) getWeather(d.date, d.weather_point);
   }
-  // photos
-  const imgs = [...document.querySelectorAll("img[data-photo]")];
-  if (imgs.length) {
-    store.photoUrls([...new Set(imgs.map(i => i.dataset.photo))]).then(map => {
-      imgs.forEach(i => { const u = map[i.dataset.photo]; if (u) i.src = u; });
-    }).catch(() => {});
-  }
+  fillPhotos(document);
   if (state.tab === "map") ov.mount(state.map.filter || "all", state.map.selected, id => pickMapStop(id, "pin"));
   else ov.unmount();
   if (pendingJump) { const id = pendingJump; pendingJump = null; setTimeout(() => jump(id), 60); }
@@ -225,7 +219,7 @@ document.addEventListener("click", e => {
     case "del-stop":
       if (el.dataset.confirm !== "1") { el.dataset.confirm = "1"; el.lastChild.textContent = "再按一次刪除"; break; }
       guard(async () => { await store.deleteStop(id); closeSheet(); toast("已刪除"); }); break;
-    case "edit-day": { const d = S.days.find(x => x.date === el.dataset.date); openSheet(V.daySheet(d)); break; }
+    case "edit-day": { const d = S.days.find(x => x.date === el.dataset.date); openSheet(V.daySheet(d)); fillPhotos(sheetBody); break; }
     case "map-filter": state.map.filter = el.dataset.filter; state.map.selected = null; render(); break;
     case "map-pick": pickMapStop(id, "list"); break;
     case "ov-locate": ov.toggleLocate(); break;
@@ -592,7 +586,15 @@ document.addEventListener("submit", e => {
     guard(async () => { await store.saveStops(changed); pendingNew = null; editingStop = null; closeSheet(); pendingJump = stop.id; render(); });
   }
   if (a === "save-day") {
-    guard(async () => { await store.saveDay(form.dataset.date, { title: String(fd.get("title")).trim(), tagline: String(fd.get("tagline")).trim(), theme: String(fd.get("theme")), rain_note: String(fd.get("rain_note") || "").trim() }); closeSheet(); });
+    const file = fd.get("cover_file");
+    let theme = String(fd.get("theme") || "oreum");
+    if (theme === "upload" && !(file && file.size)) theme = S.days.find(x => x.date === form.dataset.date)?.theme || "oreum";
+    busy(true);
+    guard(async () => {
+      if (theme === "upload" || (theme.startsWith("photo:") && file && file.size)) theme = "photo:" + await store.uploadCover(file);
+      await store.saveDay(form.dataset.date, { title: String(fd.get("title")).trim(), tagline: String(fd.get("tagline")).trim(), theme, rain_note: String(fd.get("rain_note") || "").trim() });
+      closeSheet();
+    }).finally?.(() => busy(false));
   }
   if (a === "save-info") {
     const g = k => String(fd.get(k) || "").trim();
@@ -666,9 +668,31 @@ function exportPdf(o) {
   document.title = `濟州行程${o.scope === "all" ? "" : "_" + o.scope.slice(5).replace("-", "")}`; // becomes the PDF file name
   const done = () => { document.title = old; root.innerHTML = ""; window.removeEventListener("afterprint", done); };
   window.addEventListener("afterprint", done);
-  // let fonts settle before the print dialog takes a snapshot
-  (document.fonts?.ready || Promise.resolve()).then(() => setTimeout(() => {
+  // let fonts and cover photos load before the print dialog takes a snapshot
+  const loaded = () => Promise.all([...root.querySelectorAll("img")].map(i => i.complete && i.src ? 0 : new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 6000); })));
+  Promise.all([document.fonts?.ready, fillPhotos(root).then(loaded)]).then(() => setTimeout(() => {
     try { window.print(); } catch { done(); toast("這裡不能列印：請用 Chrome 或 Safari 打開網址再匯出"); }
   }, 150));
   if (!days.length) toast("沒有可以匯出的行程");
 }
+
+// Signed links for private photos (memories and day covers).
+function fillPhotos(scope) {
+  const imgs = [...scope.querySelectorAll("img[data-photo]")].filter(i => !i.src);
+  if (!imgs.length) return Promise.resolve();
+  return store.photoUrls([...new Set(imgs.map(i => i.dataset.photo))]).then(map => {
+    imgs.forEach(i => { const u = map[i.dataset.photo]; if (u) i.src = u; });
+  }).catch(() => {});
+}
+// Picking a photo for the cover selects that tile and previews it.
+document.addEventListener("change", e => {
+  if (e.target.name !== "cover_file" || !e.target.files?.[0]) return;
+  const tile = e.target.closest(".theme-upload");
+  const radio = tile.querySelector("input[type=radio]");
+  radio.value = "upload"; radio.checked = true;
+  let img = tile.querySelector("img");
+  if (!img) { img = document.createElement("img"); img.alt = ""; tile.querySelector(".up-ic")?.replaceWith(img); }
+  img.removeAttribute("data-photo");
+  img.src = URL.createObjectURL(e.target.files[0]);
+  tile.querySelector("span:not(.up-ic)").textContent = "你的照片（儲存後上傳）";
+});

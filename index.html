@@ -72,7 +72,7 @@
 
   /* Cover */
   .cover { position: relative; border-radius: 24px; overflow: hidden; margin-top: 4px; color: #fff; isolation: isolate; }
-  .cover svg.art { display: block; width: 100%; height: 230px; }
+  .cover svg.art, .cover img.art { display: block; width: 100%; height: 230px; object-fit: cover; }
   .cover .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,24,30,.0) 30%, rgba(20,24,30,.62) 100%); z-index: 1; }
   .cover .text { position: absolute; left: 20px; right: 20px; bottom: 16px; z-index: 2; }
   .cover .dayno { font: 800 15px/1 var(--num); opacity: .9; letter-spacing: .2px; }
@@ -334,7 +334,7 @@
   .hero-count p { margin: 4px 0 0; font-size: 14px; opacity: .95; }
 
   .next-card { background: var(--paper); border-radius: 24px; overflow: hidden; margin-top: 4px; }
-  .next-card svg.art { display: block; width: 100%; height: 120px; }
+  .next-card svg.art, .next-card img.art { display: block; width: 100%; height: 120px; object-fit: cover; }
   .next-body { padding: 14px 18px 18px; }
   .next-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--stone); }
   .next-meta b { font: 800 16px var(--num); color: var(--basalt); }
@@ -513,7 +513,11 @@
   .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .theme-opt { position: relative; display: block; border-radius: 14px; overflow: hidden; cursor: pointer; border: 3px solid transparent; }
   .theme-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .theme-opt svg { display: block; width: 100%; height: auto; aspect-ratio: 400 / 230; }
+  .theme-opt svg, .theme-opt img { display: block; width: 100%; height: auto; aspect-ratio: 400 / 230; object-fit: cover; }
+  .theme-upload { background: #E4EBEA; border-style: dashed; border-color: #B9C4C2; }
+  .theme-upload .up-ic { display: grid; place-items: center; aspect-ratio: 400 / 230; color: var(--stone); }
+  .theme-upload .up-ic svg { width: 28px; height: 28px; aspect-ratio: auto; }
+  .theme-upload input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .theme-opt span { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 8px 5px; color: #fff; font-size: 12px; font-weight: 700; background: linear-gradient(180deg, transparent, rgba(20,24,30,.6)); }
   .theme-opt:has(input:checked) { border-color: var(--tangerine); }
   .theme-opt:has(input:checked) span::before { content: "✓ "; }
@@ -559,7 +563,7 @@
     .p-catdot { display: none; }
     #print-root.fancy { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     #print-root.fancy .p-cover { position: relative; min-height: 255mm; display: flex; flex-direction: column; gap: 10mm; }
-    #print-root.fancy .p-cover-art { width: 100%; height: 110mm; border-radius: 6mm; display: block; }
+    #print-root.fancy .p-cover-art { width: 100%; height: 110mm; border-radius: 6mm; display: block; object-fit: cover; }
     #print-root.fancy .p-cover-txt { margin-top: -38mm; padding: 0 8mm; color: #fff; position: relative; text-shadow: 0 1pt 4pt rgba(0,0,0,.35); }
     #print-root.fancy .p-cover-txt h1 { font-size: 34pt; margin: 0; line-height: 1.1; }
     #print-root.fancy .p-kicker { letter-spacing: .2em; font-size: 9pt; font-weight: 800; margin: 0 0 2pt; opacity: .9; }
@@ -567,7 +571,7 @@
     #print-root.fancy .p-toc li { display: flex; align-items: center; gap: 8pt; padding: 8pt 10pt; border-radius: 8pt; background: #F3F6F5; }
     #print-root.fancy .p-flights { list-style: none; padding: 0; color: #5d666e; font-size: 10pt; }
     #print-root.fancy .p-banner { position: relative; height: 52mm; border-radius: 5mm; overflow: hidden; margin-bottom: 6pt; }
-    #print-root.fancy .p-banner svg { width: 100%; height: 100%; display: block; }
+    #print-root.fancy .p-banner svg, #print-root.fancy .p-banner img { width: 100%; height: 100%; display: block; object-fit: cover; }
     #print-root.fancy .p-banner-txt { position: absolute; left: 0; right: 0; bottom: 0; padding: 18pt 12pt 9pt; color: #fff; display: grid; background: linear-gradient(180deg, rgba(20,24,30,0), rgba(20,24,30,.6)); }
     #print-root.fancy .p-banner-txt span { font-size: 9pt; font-weight: 800; letter-spacing: .05em; }
     #print-root.fancy .p-banner-txt b { font-size: 20pt; line-height: 1.2; }

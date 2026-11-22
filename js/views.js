@@ -8,7 +8,13 @@ import {
 
 export const DAY_COLORS = ["#B4547E", "#4E8A5B", "#C25F0C", "#2F64A8", "#6B8A2E", "#8A5A2E"];
 export const RAIN_COLOR = "#6B6F8A";
-const THEMES = { dawn: "清晨抵達", oreum: "火山丘", south: "南部海岸", west: "西部夕陽", ilchul: "城山日出", halla: "漢拏山初雪", eoksae: "秋天芒草", emerald: "翡翠海灘", tangerine: "橘子園", rainy: "下雨天", harbor: "夜晚港口" };
+const THEMES = { dawn: "清晨抵達", oreum: "火山丘", south: "南部海岸", west: "西部夕陽", ilchul: "城山日出", halla: "漢拏山初雪", eoksae: "秋天芒草", emerald: "翡翠海灘", tangerine: "橘子園", rainy: "下雨天", harbor: "夜晚港口", camellia: "山茶花", waterfall: "瀑布", greentea: "綠茶園", olle: "偶來小路", haenyeo: "海女", market: "夜市", bbq: "黑豬肉烤肉", cafe: "海景咖啡" };
+const isPhoto = t => typeof t === "string" && t.startsWith("photo:");
+// Day cover: one of the drawings, or the trip's own photo.
+export function coverArt(theme, vb = "0 0 400 230", prefix = "") {
+  if (isPhoto(theme)) return `<img class="art cover-photo" data-photo="${esc(theme.slice(6))}" alt="">`;
+  return `<svg class="art" viewBox="${vb}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${prefix ? artSvg(theme, prefix) : (ART[theme] || ART.oreum)()}</svg>`;
+}
 
 /* ---------- shared bits ---------- */
 export const isPlace = s => s.category !== "transport";
@@ -155,7 +161,7 @@ export function todayView() {
     if (next) {
       const opt = chosenOpt(next) || next.options?.[0];
       body += `<section class="next-card">
-        <svg class="art" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
+        ${coverArt(day.theme, "0 0 400 140")}
         <div class="next-body">
           <div class="next-meta"><span class="pill">下一站</span><b>${esc(next.time || "")}</b>${next.drive_min ? `<span>・開車約 ${next.drive_min} 分</span>` : ""}</div>
           <h2>${esc(next.name)}</h2>
@@ -215,7 +221,7 @@ export function planView(date) {
   let html = topbar("行程", "", S.mode === "synced") + tabs + `<main class="page">${editable() ? `<p class="editing-bar">編輯中：點鉛筆改內容，按住右邊 <b>⠿</b> 上下拖可換順序</p>` : ""}`;
   if (S.mode === "local") html += `<p class="callout soft">${icon("user")}<span>加入旅行後，大家都能在這裡新增、修改行程。<button class="link-btn inline" type="button" data-act="open-join">加入</button></span></p>`;
   html += `<section class="cover" aria-label="Day ${day.day} 封面">
-      <svg class="art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[day.theme] || ART.oreum)()}</svg>
+      ${coverArt(day.theme)}
       <div class="shade"></div>
       ${editable() ? `<button class="cover-edit" type="button" data-act="edit-day" data-date="${day.date}">${icon("edit")}編輯這天</button>` : ""}
       <div class="text"><div class="dayno">DAY ${day.day}・${md(day.date)}（${weekday(day.date)}）</div>
@@ -343,7 +349,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "16.4";
+export const APP_VERSION = "16.5";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -396,7 +402,7 @@ export function printDoc(o) {
   if (o.style === "fancy") {
     const t0 = S.days[0];
     h = `<section class="p-cover">
-      <svg class="p-cover-art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${printArt(t0?.theme || "dawn")}</svg>
+      ${isPhoto(t0?.theme) ? `<img class="p-cover-art" data-photo="${esc(t0.theme.slice(6))}" alt="">` : `<svg class="p-cover-art" viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${printArt(t0?.theme || "dawn")}</svg>`}
       <div class="p-cover-txt"><p class="p-kicker">JEJU ISLAND</p><h1>濟州 ${first ? md(first) : ""}–${last ? md(last).split("/").pop() : ""}</h1>
         ${S.members.length ? `<p>${S.members.map(m => esc(m.display_name)).join("・")}</p>` : ""}</div>
       <ol class="p-toc">${days.map(d => `<li><span class="p-dayno" style="background:${dayColor(d.date)}">DAY ${d.day}</span><b>${md(d.date)}（${weekday(d.date)}）</b>${esc(d.title || "還沒排")}<span class="p-mut">　${stopsFor(d.date, "sun").filter(isPlace).length} 站</span></li>`).join("")}</ol>
@@ -408,7 +414,7 @@ export function printDoc(o) {
     const arr = (t.flights || []).find(f => f.date === day.date && f.to === "CJU");
     const dep = (t.flights || []).find(f => f.date === day.date && f.from === "CJU");
     const st = stayFor(day.date);
-    const banner = o.style === "fancy" ? `<div class="p-banner"><svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${printArt(day.theme)}</svg>
+    const banner = o.style === "fancy" ? `<div class="p-banner">${isPhoto(day.theme) ? `<img data-photo="${esc(day.theme.slice(6))}" alt="">` : `<svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${printArt(day.theme)}</svg>`}
       <div class="p-banner-txt"><span>DAY ${day.day}・${md(day.date)}（${weekday(day.date)}）</span><b>${esc(day.title || "還沒取名")}</b>${day.tagline ? `<small>${esc(day.tagline)}</small>` : ""}</div></div>` : "";
     h += `<section class="p-day${i || o.style === "fancy" ? " p-break" : ""}">${banner}
       <h2 class="p-dayh"><span class="p-dayno" style="background:${dayColor(day.date)}">DAY ${day.day}</span>${md(day.date)}（${weekday(day.date)}）${esc(day.title || "")}</h2>
@@ -713,7 +719,12 @@ export function daySheet(d) {
       <label>一句話介紹<input name="tagline" type="text" maxlength="40" value="${esc(d.tagline || "")}" placeholder="日出、海女和牛島"></label>
       <label>雨天備案說明（選填）<input name="rain_note" type="text" maxlength="60" value="${esc(d.rain_note || "")}" placeholder="下雨改去美術館，晚餐照舊"></label>
       <fieldset class="theme-pick"><legend>封面插畫</legend>
-        <div class="theme-grid">${Object.entries(THEMES).map(([k, v]) => `<label class="theme-opt"><input type="radio" name="theme" value="${k}"${(d.theme || "oreum") === k ? " checked" : ""}>
+        <div class="theme-grid">
+          <label class="theme-opt theme-upload"><input type="radio" name="theme" value="${isPhoto(d.theme) ? esc(d.theme) : "upload"}"${isPhoto(d.theme) ? " checked" : ""}>
+            ${isPhoto(d.theme) ? `<img data-photo="${esc(d.theme.slice(6))}" alt="">` : `<span class="up-ic">${icon("photo")}</span>`}
+            <span>${isPhoto(d.theme) ? "你的照片（點這裡換）" : "用自己的照片"}</span>
+            <input type="file" name="cover_file" accept="image/*" aria-label="選一張照片當封面"></label>
+          ${Object.entries(THEMES).map(([k, v]) => `<label class="theme-opt"><input type="radio" name="theme" value="${k}"${(d.theme || "oreum") === k ? " checked" : ""}>
           <svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${artSvg(k, "t-" + k)}</svg><span>${v}</span></label>`).join("")}</div>
       </fieldset>
       <button class="btn primary wide" type="submit">儲存</button></form>`;
