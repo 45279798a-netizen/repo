@@ -349,7 +349,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "16.5";
+export const APP_VERSION = "17";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -687,7 +687,7 @@ export function stopSheet(s, isNew) {
       <div class="row2"><label>停留（分鐘）<input name="duration_min" type="number" min="0" max="600" step="1" inputmode="numeric" value="${s.duration_min ?? ""}"></label>
         <label>從上一站開車（分鐘）<input name="drive_min" placeholder="有精確位置會自動算" type="number" min="0" max="300" step="1" inputmode="numeric" value="${s.drive_min ?? ""}"></label></div>
       <fieldset class="loc"><legend>位置</legend>
-        <p class="muted small">打好名稱會自動找位置，有韓文名稱比較容易找到。小店常常找不到，那就貼 Google 地圖連結。</p>
+        <p class="muted small">打好名稱會自動用 Google 地圖找位置（跟下面預覽的地圖一樣）。找錯了按「不是這個」，或貼 Google 地圖連結。</p>
         <div id="loc-preview">${gmapFrame(gmapQuery(s), 15, "位置預覽", "gmap small")}</div>
         <p id="loc-state" class="small loc-state" aria-live="polite">${locState(s.lat, s.extra?.geo, s.extra?.geo_label)}</p>
         <div class="maplink">
@@ -745,6 +745,7 @@ export function memSheet(date) {
 export function locState(lat, geo, label) {
   if (lat == null || lat === "") return "還沒有精確位置：打好名稱會自動找";
   if (geo === "auto") return `📍 自動找到：${esc(label || "")} <button class="link-btn" type="button" data-act="pick-clear" data-wrong="1">不是這個</button>`;
+  if (geo === "gmap") return `📍 用 Google 地圖找到：${esc(label || "")} <button class="link-btn" type="button" data-act="pick-clear" data-wrong="1">不是這個</button>`;
   return `📍 已放精確位置 <button class="link-btn" type="button" data-act="pick-clear">清除</button>`;
 }
 

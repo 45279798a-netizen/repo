@@ -3,7 +3,8 @@ import * as store from "./store.js";
 import { S } from "./store.js";
 import * as V from "./views.js";
 import * as ov from "./ovmap.js";
-import { autoLocate } from "./geo.js";
+import { autoLocate, setGoogleMap } from "./geo.js";
+setGoogleMap(q => store.placeFromName(q));
 import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce } from "./util.js";
 
 const app = document.getElementById("app");
@@ -128,6 +129,15 @@ async function guard(fn) {
   try { await fn(); } catch (e) { toast(e.message || "出了點問題，再試一次"); }
 }
 
+// The Naver app didn't open: let the person choose (a tap isn't blocked like an automatic pop-up).
+function naverMissing(web) {
+  openSheet(`<h2>Naver Map 沒有打開</h2>
+    <p>可能還沒安裝 Naver Map App，或手機擋下了。可以先用網頁版導航，或去安裝 App（導航最準）。</p>
+    <div class="row-btns" style="display:grid;gap:8px">
+      <a class="btn primary wide" href="${web}" target="_blank" rel="noopener">用 Naver 網頁版打開</a>
+      <a class="btn wide" href="https://play.google.com/store/apps/details?id=com.nhn.android.nmap" target="_blank" rel="noopener">安裝 Naver Map（Android）</a>
+      <a class="btn wide" href="https://apps.apple.com/app/id311867728" target="_blank" rel="noopener">安裝 Naver Map（iPhone）</a></div>`);
+}
 /* Open the Naver Map app; if nothing happens, fall back to the Naver web map. */
 function openNaver(scheme, web) {
   let left = false;
@@ -138,7 +148,7 @@ function openNaver(scheme, web) {
   setTimeout(() => {
     document.removeEventListener("visibilitychange", mark);
     window.removeEventListener("pagehide", mark);
-    if (!left && !document.hidden) { const w = window.open(web, "_blank", "noopener"); if (!w) location.href = web; }
+    if (!left && !document.hidden) naverMissing(web);
   }, 1600);
 }
 
@@ -298,7 +308,7 @@ function setPick(p, geo = "", label = "") {
 let autoRun = 0;
 async function autoFill(f) {
   if (!f || f.dataset.noauto === "1") return;
-  if (f.lat.value && f.geo.value !== "auto") return;
+  if (f.lat.value && !["auto", "gmap"].includes(f.geo.value)) return;
   const stop = { name: f.name.value, name_ko: f.name_ko.value, extra: { search_q: editingStop?.extra?.search_q } };
   if (!stop.name.trim() && !stop.name_ko.trim()) return;
   const run = ++autoRun;
@@ -307,9 +317,9 @@ async function autoFill(f) {
   let hit = null, offline = false;
   try { hit = await autoLocate(stop); } catch { offline = true; }
   if (run !== autoRun || !f.isConnected) return;
-  if (hit) setPick({ lat: hit.lat, lng: hit.lng }, "auto", hit.label);
+  if (hit) setPick({ lat: hit.lat, lng: hit.lng }, hit.src, hit.label);
   else {
-    if (f.geo.value === "auto") setPick(null);
+    if (["auto", "gmap"].includes(f.geo.value)) setPick(null);
     if (st) st.textContent = offline ? "現在連不到地圖資料，等一下再試" : "自動找不到這個地方：試試改韓文名稱，或貼 Google 地圖連結";
   }
   return hit;
@@ -333,7 +343,7 @@ async function autoGeoAll(btn) {
     if (!hit) continue;
     const cur = S.stops.find(x => x.id === s.id);
     if (!cur || cur.lat != null) continue;
-    const stop = { ...cur, lat: hit.lat, lng: hit.lng, extra: { ...(cur.extra || {}), approx: true, geo: "auto", geo_label: hit.label } };
+    const stop = { ...cur, lat: hit.lat, lng: hit.lng, extra: { ...(cur.extra || {}), approx: true, geo: hit.src, geo_label: hit.label } };
     try { await store.saveStops(placeAndEstimate(stop, false).map(x => ({ ...x }))); found++; } catch {}
   }
   const left = todo.length - found;
@@ -557,7 +567,7 @@ document.addEventListener("submit", e => {
     const extra = { ...(base.extra || {}) };
     if (lat !== base.lat || lng !== base.lng) extra.approx = lat != null;
     extra.geo = lat != null ? String(fd.get("geo") || "") || extra.geo || null : null;
-    extra.geo_label = extra.geo === "auto" ? String(fd.get("geo_label") || "") : null;
+    extra.geo_label = ["auto", "gmap"].includes(extra.geo) ? String(fd.get("geo_label") || "") : null;
     if (typedDrive != null && typedDrive !== base.drive_min) extra.drive_auto = false;
     if (typedDrive == null) extra.drive_auto = true;
     const stop = {

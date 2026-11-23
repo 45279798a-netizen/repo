@@ -58,8 +58,28 @@ async function photon(q) {
   }));
 }
 
-// Returns { lat, lng, label } or null. Only accepts a hit whose name matches what we searched.
+let gmap = null;
+export function setGoogleMap(fn) { gmap = fn; }
+// The same search the embedded Google map does (name + Jeju).
+async function viaGoogleMap(stop) {
+  const base = [stop.extra?.search_q, stop.name_ko, stop.name].map(q => String(q || "").trim()).filter((q, i, a) => q.length >= 2 && !GENERIC.test(q) && a.indexOf(q) === i).slice(0, 2);
+  for (const q0 of base) {
+    const q = /제주|濟州|济州|jeju/i.test(q0) ? q0 : `${q0} ${/[\uac00-\ud7a3]/.test(q0) ? "제주" : "濟州"}`;
+    const c = await gmap(q);
+    if (c && inJeju(c.lat, c.lng)) return { ...c, label: q0, src: "gmap" };
+  }
+  return null;
+}
+
+// Returns { lat, lng, label, src } or null.
 export async function autoLocate(stop) {
+  if (gmap) {
+    try { const hit = await viaGoogleMap(stop); if (hit) return hit; } catch { /* fall back to free data */ }
+  }
+  return await viaOsm(stop);
+}
+// Free OpenStreetMap data: only accepts a hit whose name matches what we searched.
+async function viaOsm(stop) {
   const qs = queriesFor(stop);
   let failed = 0;
   for (const src of [nominatim, photon]) {
@@ -67,7 +87,7 @@ export async function autoLocate(stop) {
       let hits;
       try { hits = await src(q); } catch { failed++; continue; }
       const hit = hits.find(h => inJeju(h.lat, h.lng) && h.names.some(n => similar(n, q)));
-      if (hit) return { lat: +hit.lat.toFixed(5), lng: +hit.lng.toFixed(5), label: hit.label || q };
+      if (hit) return { lat: +hit.lat.toFixed(5), lng: +hit.lng.toFixed(5), label: hit.label || q, src: "auto" };
     }
   }
   if (failed && failed === qs.length * 2) throw new Error("offline");

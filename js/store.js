@@ -443,6 +443,25 @@ async function openLink(url, ua) {
   }
   return data || {};
 }
+// Find a place by name the way the embedded Google map does: open the map page for the name
+// (through the Supabase function) and read the coordinates of the place it shows.
+let blank = null; // where Google lands when it can't find a specific place
+async function gmapPage(q) {
+  const r = await openLink(`https://maps.google.com/maps?q=${encodeURIComponent(q)}&hl=zh-TW&output=embed`, "desktop");
+  const t = dec(unesc(r.html || ""));
+  for (const re of [/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, /\[null,null,(3[3-8]\.\d{3,}),(12[4-9]\.\d{3,}|13[01]\.\d{3,})\]/]) {
+    const m = t.match(re); if (m && KR(+m[1], +m[2])) return { lat: r5(m[1]), lng: r5(m[2]) };
+  }
+  return t.length > 2000 ? mostRepeated(t) : null;
+}
+export async function placeFromName(q) {
+  if (!sb || S.mode !== "synced") { const e = new Error("offline"); e.offline = true; throw e; }
+  if (!blank) blank = gmapPage("濟州島").catch(() => null);
+  const [c, b] = await Promise.all([gmapPage(q), blank]);
+  if (!c) return null;
+  const near = (p, o) => o && Math.abs(p.lat - o.lat) < 0.004 && Math.abs(p.lng - o.lng) < 0.005;
+  return near(c, b) ? null : c;
+}
 export async function placeFromLink(text) {
   text = text.trim();
   const direct = coordsInText(text);
