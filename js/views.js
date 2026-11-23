@@ -261,9 +261,9 @@ export function planView(date) {
   html += `</ol>`;
   if (!list.length && !arr) html += `<div class="empty"><h3>這天還沒有行程</h3><p>${editable() ? "按下面的按鈕新增第一站。" : "加入旅行後就能新增。"}</p></div>`;
   if (editable()) {
-    const st = stayFor(day.date);
-    html += `<div class="add-row"><button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>
-      <button class="add-stop add-hotel" type="button" data-act="${st ? "new-stay-stop" : "edit-info"}" data-date="${day.date}" data-plan="${plan}">${icon("hotel")}${st ? "加「回住宿」" : "先填住宿資訊"}</button></div>`;
+    const st = stayFor(day.date), any = (S.info?.stays || []).length;
+    html += `<div class="add-row${st || !any ? "" : " one"}"><button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>
+      ${st || !any ? `<button class="add-stop add-hotel" type="button" data-act="${st ? "new-stay-stop" : "edit-info"}" data-date="${day.date}" data-plan="${plan}">${icon("hotel")}${st ? "加「回住宿」" : "先填住宿資訊"}</button>` : ""}</div>`;
   }
   html += stayCard(day.date) + infoFooter() + `</main>`;
   return html;
@@ -353,7 +353,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "17.1";
+export const APP_VERSION = "17.2";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -640,6 +640,18 @@ export function infoSheet() {
     <h3>實用韓文</h3><ul class="phrases">${phrases.map(([zh, ko, ro]) => `<li><span>${zh}</span><b lang="ko">${ko}</b><small>${ro}</small></li>`).join("")}</ul>`;
 }
 
+function stayRow(st, i, dateOpts, isNew) {
+  return `<div class="sub-form stay-row" data-i="${i}">
+        <div class="opt-edit-h"><b>${isNew ? "新的住宿" : "住宿"}</b><button class="link-btn danger" type="button" data-act="del-stay-row">刪除</button></div>
+        <label>名稱<input name="stay_name_${i}" type="text" maxlength="60" value="${esc(st.name || "")}" placeholder="${isNew ? "飯店或民宿名稱" : ""}"></label>
+        <div class="row2"><label>入住<select name="stay_in_${i}">${dateOpts(st.check_in)}</select></label>
+          <label>退房<select name="stay_out_${i}">${dateOpts(st.check_out)}</select></label></div>
+        <label>韓文地址（給司機看、導航用）<input name="stay_addr_${i}" type="text" maxlength="120" lang="ko" value="${esc(st.address_ko || "")}" placeholder="제주특별자치도 제주시 …"></label>
+        <div class="row2"><label>電話<input name="stay_phone_${i}" type="tel" maxlength="30" value="${esc(st.phone || "")}"></label>
+          <label>備註<input name="stay_note_${i}" type="text" maxlength="60" value="${esc(st.note || "")}" placeholder="15:00 入住"></label></div>
+      </div>`;
+}
+
 export function infoEditSheet() {
   const info = S.info || {};
   const stays = [...(info.stays || []), {}];
@@ -653,14 +665,10 @@ export function infoEditSheet() {
   return `<h2>編輯旅行資訊</h2>
     <form data-act="save-info" class="form" data-stays="${stays.length}" data-bookings="${bookings.length}">
       <h3>住宿</h3>
-      ${stays.map((st, i) => `<div class="sub-form">
-        <label>名稱<input name="stay_name_${i}" type="text" maxlength="60" value="${esc(st.name || "")}" placeholder="${i === stays.length - 1 ? "新增一筆住宿" : ""}"></label>
-        <div class="row2"><label>入住<select name="stay_in_${i}">${dateOpts(st.check_in)}</select></label>
-          <label>退房<select name="stay_out_${i}">${dateOpts(st.check_out)}</select></label></div>
-        <label>韓文地址（給司機看、導航用）<input name="stay_addr_${i}" type="text" maxlength="120" lang="ko" value="${esc(st.address_ko || "")}" placeholder="제주특별자치도 제주시 …"></label>
-        <div class="row2"><label>電話<input name="stay_phone_${i}" type="tel" maxlength="30" value="${esc(st.phone || "")}"></label>
-          <label>備註<input name="stay_note_${i}" type="text" maxlength="60" value="${esc(st.note || "")}" placeholder="15:00 入住"></label></div>
-      </div>`).join("")}
+      <p class="muted small">住不只一間就每間各填一筆，入住、退房日期填對，每天就會自動顯示當晚住哪裡。</p>
+      <div id="stay-rows">${stays.map((st, i) => stayRow(st, i, dateOpts, i === stays.length - 1)).join("")}</div>
+      <button class="btn wide" type="button" data-act="add-stay-row">${icon("plus")}再加一間住宿</button>
+      <template id="stay-tpl">${stayRow({}, "__I__", dateOpts, true)}</template>
       <h3>租車</h3>
       <div class="sub-form">
         <div class="row2"><label>公司<input name="r_company" type="text" maxlength="40" value="${esc(r.company || "")}"></label>

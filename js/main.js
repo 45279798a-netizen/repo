@@ -198,6 +198,14 @@ document.addEventListener("click", e => {
       toast("時間是估的，記得改成你們預計回去的時間");
       break;
     }
+    case "add-stay-row": {
+      const box = document.getElementById("stay-rows"), tpl = document.getElementById("stay-tpl");
+      const i = "n" + Date.now().toString(36);
+      box.insertAdjacentHTML("beforeend", tpl.innerHTML.replaceAll("__I__", i));
+      box.lastElementChild.querySelector("input")?.focus();
+      break;
+    }
+    case "del-stay-row": el.closest(".stay-row")?.remove(); break;
     case "pick-clear": {
       const f = sheetBody.querySelector("form[data-act=save-stop]");
       if (f && el.dataset.wrong) f.dataset.noauto = "1"; // don't search again for this name
@@ -627,7 +635,8 @@ document.addEventListener("submit", e => {
   if (a === "save-info") {
     const g = k => String(fd.get(k) || "").trim();
     const stays = [];
-    for (let i = 0; i < Number(form.dataset.stays); i++) {
+    for (const row of form.querySelectorAll(".stay-row")) {
+      const i = row.dataset.i;
       const name = g(`stay_name_${i}`);
       if (name) stays.push({ name, check_in: g(`stay_in_${i}`), check_out: g(`stay_out_${i}`), address_ko: g(`stay_addr_${i}`), phone: g(`stay_phone_${i}`), note: g(`stay_note_${i}`) });
     }
