@@ -187,7 +187,7 @@ document.addEventListener("click", e => {
       const tpl = store.newStopTemplate(el.dataset.date, el.dataset.plan);
       const prev = V.stopsFor(el.dataset.date, el.dataset.plan).filter(x => x.time).at(-1);
       // after the last stop (a drive back already ends at the hotel; otherwise allow ~30 min to get there)
-      const t = prev ? toMin(prev.time) + (prev.duration_min ?? 60) + (prev.category === "transport" ? 0 : 30) : 21 * 60;
+      const t = prev ? toMin(prev.time) + (prev.category === "transport" ? 60 : (prev.duration_min ?? 60) + 30) : 21 * 60;
       Object.assign(tpl, { category: "hotel", name: `回到 ${st.name}`, duration_min: 0,
         time: hhmm(Math.min(Math.ceil(t / 15) * 15, 23 * 60 + 45)),
         tips: [st.note, st.phone ? `電話 ${st.phone}` : ""].filter(Boolean),
