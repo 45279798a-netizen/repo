@@ -5,7 +5,7 @@ import * as V from "./views.js";
 import * as ov from "./ovmap.js";
 import { autoLocate, setGoogleMap } from "./geo.js";
 setGoogleMap(q => store.placeFromName(q));
-import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce } from "./util.js";
+import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce, toMin, hhmm } from "./util.js";
 
 const app = document.getElementById("app");
 const state = {
@@ -179,6 +179,24 @@ document.addEventListener("click", e => {
     case "new-stop": {
       const tpl = store.newStopTemplate(el.dataset.date, el.dataset.plan);
       pendingNew = tpl; editingStop = tpl; openSheet(V.stopSheet(tpl, true)); break;
+    }
+    case "new-stay-stop": {
+      // A "back to the hotel" stop filled from the lodging info; the address finds the spot.
+      const st = V.stayFor(el.dataset.date);
+      if (!st) break;
+      const tpl = store.newStopTemplate(el.dataset.date, el.dataset.plan);
+      const prev = V.stopsFor(el.dataset.date, el.dataset.plan).filter(x => x.time).at(-1);
+      // after the last stop (a drive back already ends at the hotel; otherwise allow ~30 min to get there)
+      const t = prev ? toMin(prev.time) + (prev.duration_min ?? 60) + (prev.category === "transport" ? 0 : 30) : 21 * 60;
+      Object.assign(tpl, { category: "hotel", name: `回到 ${st.name}`, duration_min: 0,
+        time: hhmm(Math.min(Math.ceil(t / 15) * 15, 23 * 60 + 45)),
+        tips: [st.note, st.phone ? `電話 ${st.phone}` : ""].filter(Boolean),
+        extra: st.address_ko ? { search_q: st.address_ko } : {} });
+      pendingNew = tpl; editingStop = tpl;
+      openSheet(V.stopSheet(tpl, true));
+      autoFill(sheetBody.querySelector("form[data-act=save-stop]"));
+      toast("時間是估的，記得改成你們預計回去的時間");
+      break;
     }
     case "pick-clear": {
       const f = sheetBody.querySelector("form[data-act=save-stop]");

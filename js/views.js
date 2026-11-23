@@ -80,7 +80,7 @@ function navLinks(s, compact, cls = "btn primary") {
   if (s.options?.length) return "";
   if (!isPlace(s) && !s.extra?.search_q && s.lat == null) return "";
   const t = stopTarget(s);
-  return naverBtn(t, cls, s.extra?.search_q ? "找地點" : "導航") + (compact ? "" : kakaoBtn(t));
+  return naverBtn(t, cls, s.extra?.search_q && s.category !== "hotel" ? "找地點" : "導航") + (compact ? "" : kakaoBtn(t));
 }
 const optTarget = o => ({ query: o.q || o.name_ko || o.name, name: o.name_ko || o.name });
 // The restaurant picked on the day (stored by name), or null.
@@ -260,7 +260,11 @@ export function planView(date) {
   if (dep) html += flightRow(dep, "dep");
   html += `</ol>`;
   if (!list.length && !arr) html += `<div class="empty"><h3>這天還沒有行程</h3><p>${editable() ? "按下面的按鈕新增第一站。" : "加入旅行後就能新增。"}</p></div>`;
-  if (editable()) html += `<button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>`;
+  if (editable()) {
+    const st = stayFor(day.date);
+    html += `<div class="add-row"><button class="add-stop" type="button" data-act="new-stop" data-date="${day.date}" data-plan="${plan}">${icon("plus")}新增一站${plan === "rain" ? "（雨天備案）" : ""}</button>
+      <button class="add-stop add-hotel" type="button" data-act="${st ? "new-stay-stop" : "edit-info"}" data-date="${day.date}" data-plan="${plan}">${icon("hotel")}${st ? "加「回住宿」" : "先填住宿資訊"}</button></div>`;
+  }
   html += stayCard(day.date) + infoFooter() + `</main>`;
   return html;
 }
@@ -349,7 +353,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "17";
+export const APP_VERSION = "17.1";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
