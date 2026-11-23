@@ -87,8 +87,18 @@ const optTarget = o => ({ query: o.q || o.name_ko || o.name, name: o.name_ko || 
 export function chosenOpt(s) { const c = s.extra?.chosen; return c ? (s.options || []).find(o => o.name === c) || null : null; }
 
 /* ---------- weather card ---------- */
+// Where to read the forecast: the middle of that day's stops (Jeju City if none yet).
+export function dayPoint(day) {
+  const pts = stopsFor(day.date, "sun").filter(s => s.lat != null && s.lng != null);
+  if (pts.length) return { lat: pts.reduce((a, s) => a + s.lat, 0) / pts.length, lng: pts.reduce((a, s) => a + s.lng, 0) / pts.length };
+  return day.weather_point || { lat: 33.4996, lng: 126.5312 };
+}
+function hourStrip(w) {
+  if (!w.hours?.length) return "";
+  return `<div class="wx-hours" aria-label="每 3 小時預報">${w.hours.map(x => `<div><span>${x.h}時</span>${wxIcon(wmo(x.code)[1])}<b>${Math.round(x.t)}°</b><small${x.p >= 50 ? ' class="wet"' : ""}>${x.p ?? "–"}%</small></div>`).join("")}</div>`;
+}
 export function weatherCard(day, w) {
-  const pt = day.weather_point || { lat: 33.38, lng: 126.53 };
+  const pt = dayPoint(day);
   const sun = sunTimes(day.date, pt.lat, pt.lng);
   const sunBlock = `<div class="wx-sun">日落<b>${hhmm(sun.set)}</b>日出 ${hhmm(sun.rise)}</div>`;
   if (w) {
@@ -100,8 +110,10 @@ export function weatherCard(day, w) {
         <div class="wx-desc">${desc}・體感最低 ${Math.round(w.feel)}°</div></div>${sunBlock}</div>
       <div class="wx-stats"><div>降雨機率<b>${w.rain ?? "–"}%</b></div><div>最大風速<b>${w.wind != null ? Math.round(w.wind) : "–"} m/s</b></div>
         <div>白天長度<b>${Math.floor((sun.set - sun.rise) / 60)}h${String(Math.round((sun.set - sun.rise) % 60)).padStart(2, "0")}</b></div></div>
+      ${hourStrip(w)}
       <p class="wx-tip">${esc(wxAdvice(w, picking))}</p>
-      <p class="wx-src">天氣預報來自 Open-Meteo，每 3 小時更新</p></section>`;
+      <p class="wx-src">預報位置：這天行程的中間（海邊高度）・Open-Meteo・每小時更新${w.mm != null ? `・預估雨量 ${w.mm} mm` : ""}
+        ・<a href="https://www.weather.go.kr/w/index.do" target="_blank" rel="noopener">對照韓國氣象廳</a></p></section>`;
   }
   return `<section class="wx" aria-label="天氣">
     <div class="wx-main"><div class="wx-icon">${wxIcon("partly")}</div>
@@ -155,9 +167,9 @@ export function todayView() {
     const nextIdx = list.findIndex(s => isPlace(s) && toMin(s.time) != null && toMin(s.time) + (s.duration_min || 30) > now.min && !isDone(day.date, s.id));
     const next = list[nextIdx];
     const later = list.slice(nextIdx + 1).filter(isPlace);
-    const pt = day.weather_point || { lat: 33.38, lng: 126.53 };
+    const pt = dayPoint(day);
     const sun = sunTimes(day.date, pt.lat, pt.lng);
-    const w = cachedWeather(day.date);
+    const w = cachedWeather(day.date, pt);
     if (next) {
       const opt = chosenOpt(next) || next.options?.[0];
       body += `<section class="next-card">
@@ -227,9 +239,9 @@ export function planView(date) {
       <div class="text"><div class="dayno">DAY ${day.day}・${md(day.date)}（${weekday(day.date)}）</div>
         <h2>${esc(day.title || "還沒取名")}</h2><p>${esc(day.tagline || "")}</p>
         ${places.length ? `<p class="stats">${places.length} 站・${esc(list[0]?.time || "")} 出發</p>` : ""}</div></section>`;
-  html += `<div id="wx-slot" data-date="${day.date}">${weatherCard(day, cachedWeather(day.date))}</div>`;
+  html += `<div id="wx-slot" data-date="${day.date}">${weatherCard(day, cachedWeather(day.date, dayPoint(day)))}</div>`;
   if (hasRain(day.date) || editable()) {
-    const w = cachedWeather(day.date);
+    const w = cachedWeather(day.date, dayPoint(day));
     const bad = w && ((w.rain ?? 0) >= 60 || (w.wind ?? 0) >= 12);
     html += `<section class="plan-sw" aria-label="選擇行程">
       <div class="seg" role="group" aria-label="晴天或雨天行程">
@@ -353,7 +365,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "17.2";
+export const APP_VERSION = "17.3";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);

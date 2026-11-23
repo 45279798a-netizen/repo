@@ -96,23 +96,34 @@ export function wmo(code) {
   if (code >= 95) return ["雷雨", "rain"];
   return ["多雲", "cloud"];
 }
-export function cachedWeather(date) { return ls.get(`wx-${date}`, null)?.v || null; }
+// Forecast for one day at one spot. The spot's height is fixed near sea level: Open-Meteo otherwise uses
+// the terrain height of the grid cell, and inland Jeju cells sit on Hallasan's slopes (much colder, wetter).
+const wxKey = (date, p) => `wx2-${date}-${p.lat.toFixed(2)},${p.lng.toFixed(2)}`;
+export function cachedWeather(date, pt) { return pt ? ls.get(wxKey(date, pt), null)?.v || null : null; }
 export async function getWeather(date, pt) {
-  const key = `wx-${date}`;
+  const p = pt || { lat: 33.4996, lng: 126.5312 };
+  const key = wxKey(date, p);
   const cached = ls.get(key, null);
-  if (cached && Date.now() - cached.t < 3 * 3600e3) return cached.v;
-  const p = pt || { lat: 33.38, lng: 126.53 };
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lng}` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,apparent_temperature_min` +
+  if (cached && Date.now() - cached.t < 3600e3) return cached.v;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lng}&elevation=${p.elev ?? 20}` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,apparent_temperature_min` +
+    `&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m` +
     `&wind_speed_unit=ms&timezone=Asia%2FSeoul&forecast_days=16`;
   try {
     const r = await fetch(url); if (!r.ok) throw 0;
     const j = await r.json();
     const i = j.daily.time.indexOf(date);
     if (i < 0) return cached ? cached.v : null;
+    const hours = [];
+    j.hourly.time.forEach((t, k) => {
+      if (!t.startsWith(date)) return;
+      const h = +t.slice(11, 13);
+      if (h >= 6 && h <= 21 && h % 3 === 0) hours.push({ h, t: j.hourly.temperature_2m[k], p: j.hourly.precipitation_probability[k], code: j.hourly.weather_code[k], wind: j.hourly.wind_speed_10m[k] });
+    });
     const v = {
       code: j.daily.weather_code[i], max: j.daily.temperature_2m_max[i], min: j.daily.temperature_2m_min[i],
-      feel: j.daily.apparent_temperature_min[i], rain: j.daily.precipitation_probability_max[i], wind: j.daily.wind_speed_10m_max[i]
+      feel: j.daily.apparent_temperature_min[i], rain: j.daily.precipitation_probability_max[i], mm: j.daily.precipitation_sum[i],
+      wind: j.daily.wind_speed_10m_max[i], hours, at: Date.now()
     };
     ls.set(key, { t: Date.now(), v });
     return v;
@@ -123,7 +134,8 @@ export function wxAdvice(w, hasPicking) {
   if (w.wind != null && w.wind >= 8) out.push("風很大：帶防風外套，帽子要綁好");
   if (w.min != null && w.min <= 8) out.push("早晚很冷，洋蔥式穿法");
   else if (w.min != null && w.min <= 12) out.push("早晚涼，帶件薄外套");
-  if (w.rain != null && w.rain >= 50) out.push(hasPicking ? "可能下雨：帶傘，摘橘子雨天不開放" : "可能下雨：記得帶傘");
+  if (w.rain != null && w.rain >= 50 && (w.mm == null || w.mm >= 1)) out.push(hasPicking ? "可能下雨：帶傘，摘橘子雨天不開放" : "可能下雨：記得帶傘");
+  else if (w.rain != null && w.rain >= 50) out.push("可能有零星小雨，影響不大");
   return out.join("；") || "天氣不錯，適合走步道";
 }
 export function wxIcon(kind) {

@@ -508,6 +508,14 @@
 
 
   #print-root { display: none; }
+  .wx-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 10px 0 4px; text-align: center; }
+  .wx-hours > div { display: grid; justify-items: center; gap: 1px; padding: 6px 0; border-radius: 12px; background: rgba(255,255,255,.55); }
+  .wx-hours span { font-size: 11px; color: var(--stone); }
+  .wx-hours svg { width: 26px; height: 26px; }
+  .wx-hours b { font: 700 14px var(--num); }
+  .wx-hours small { font-size: 11px; color: var(--stone); }
+  .wx-hours small.wet { color: #2F7FA0; font-weight: 800; }
+  .wx-src a { color: inherit; }
   .add-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
   .add-row .add-stop { margin: 0; }
   .add-hotel { white-space: nowrap; }

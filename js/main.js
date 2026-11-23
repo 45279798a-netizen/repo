@@ -5,7 +5,7 @@ import * as V from "./views.js";
 import * as ov from "./ovmap.js";
 import { autoLocate, setGoogleMap } from "./geo.js";
 setGoogleMap(q => store.placeFromName(q));
-import { ls, kstNow, getWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce, toMin, hhmm } from "./util.js";
+import { ls, kstNow, getWeather, cachedWeather, setDemoTime, getDemoTime, newId, driveEstimate, debounce, toMin, hhmm } from "./util.js";
 
 const app = document.getElementById("app");
 const state = {
@@ -56,14 +56,18 @@ function afterRender() {
   if (slot) {
     const date = slot.dataset.date;
     const day = S.days.find(d => d.date === date);
-    getWeather(date, day.weather_point).then(w => {
+    getWeather(date, V.dayPoint(day)).then(w => {
       const el = document.getElementById("wx-slot");
       if (el && el.dataset.date === date && w) el.innerHTML = V.weatherCard(day, w);
     });
   }
   if (state.tab === "today") {
     const d = S.days.find(x => x.date === kstNow().date);
-    if (d) getWeather(d.date, d.weather_point);
+    if (d) {
+      const pt = V.dayPoint(d), had = cachedWeather(d.date, pt);
+      // first fetch of the day: redraw so the today card shows it (later fetches come from cache)
+      getWeather(d.date, pt).then(w => { if (w && !had && state.tab === "today") render(); });
+    }
   }
   fillPhotos(document);
   if (state.tab === "map") ov.mount(state.map.filter || "all", state.map.selected, id => pickMapStop(id, "pin"));
