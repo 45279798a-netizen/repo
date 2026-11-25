@@ -365,7 +365,7 @@ function dayGmap(day, list, nextIdx) {
   </section>`;
 }
 
-export const APP_VERSION = "17.3";
+export const APP_VERSION = "17.4";
 /* ---------- export to PDF (print layout) ---------- */
 export function exportSheet(curDate) {
   const d = S.days.find(x => x.date === curDate);
@@ -759,7 +759,13 @@ export function memSheet(date) {
   return `<h2>加照片或心得</h2><p class="muted">${md(date)}（${weekday(date)}）</p>
     <form data-act="save-mem" data-date="${date}" class="form">
       <label>在哪一站<select name="stop"><option value="">其他</option>${stops.map(s => `<option value="${s.id}">${esc(s.time || "")} ${esc(s.name)}</option>`).join("")}</select></label>
-      <label>照片（可以一次選多張）<input name="photos" type="file" accept="image/*" multiple></label>
+      <fieldset class="seg-field"><legend>照片</legend>
+        <div class="photo-btns">
+          <label class="btn primary">${icon("photo")}拍照<input class="vh" name="cam" type="file" accept="image/*" capture="environment"></label>
+          <label class="btn">${icon("list")}從相簿選<input class="vh" name="photos" type="file" accept="image/*" multiple></label></div>
+        <div id="mem-picked" class="mem-picked"></div>
+        <p class="muted small">可以連續拍好幾張，拍完再按「放進回憶」。</p>
+      </fieldset>
       <label>心得<textarea name="note" rows="3" maxlength="500" placeholder="橘子超甜，摘了快 2 公斤"></textarea></label>
       <p class="form-err" role="alert" hidden></p>
       <button class="btn primary wide" type="submit">放進回憶</button></form>`;

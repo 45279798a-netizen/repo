@@ -662,7 +662,7 @@ document.addEventListener("submit", e => {
     guard(async () => { await store.addCheck({ scope: state.list.tab, name, group_name: group }); });
   }
   if (a === "save-mem") {
-    const files = [...(form.querySelector("[name=photos]").files || [])];
+    const files = [...(form._files || [])];
     const note = String(fd.get("note") || "").trim();
     const err = form.querySelector(".form-err");
     if (!files.length && !note) { err.hidden = false; err.textContent = "選幾張照片，或寫一句心得"; return; }
@@ -736,4 +736,28 @@ document.addEventListener("change", e => {
   img.removeAttribute("data-photo");
   img.src = URL.createObjectURL(e.target.files[0]);
   tile.querySelector("span:not(.up-ic)").textContent = "你的照片（儲存後上傳）";
+});
+
+// Memory photos: camera shots and album picks add up in one list before saving.
+function showPicked(form) {
+  const box = form.querySelector("#mem-picked");
+  if (!box) return;
+  box.querySelectorAll("img").forEach(i => URL.revokeObjectURL(i.src));
+  box.innerHTML = (form._files || []).map((f, k) => `<span class="mem-thumb"><img src="${URL.createObjectURL(f)}" alt="第 ${k + 1} 張">
+    <button type="button" data-act="unpick-photo" data-k="${k}" aria-label="拿掉第 ${k + 1} 張">×</button></span>`).join("");
+}
+document.addEventListener("change", e => {
+  const inp = e.target;
+  if (!/^(cam|photos)$/.test(inp.name) || !inp.closest("form[data-act=save-mem]")) return;
+  const form = inp.form;
+  form._files = [...(form._files || []), ...(inp.files || [])];
+  inp.value = ""; // allow taking/choosing again
+  showPicked(form);
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act=unpick-photo]");
+  if (!b) return;
+  const form = b.closest("form");
+  form._files.splice(Number(b.dataset.k), 1);
+  showPicked(form);
 });

@@ -508,6 +508,15 @@
 
 
   #print-root { display: none; }
+  .photo-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .photo-btns .btn { position: relative; min-height: 52px; font-size: 15px; font-weight: 700; justify-content: center; }
+  .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+  .photo-btns .btn:focus-within { outline: 2px solid var(--olle); outline-offset: 2px; }
+  .mem-picked { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+  .mem-picked:empty { display: none; }
+  .mem-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; }
+  .mem-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .mem-thumb button { position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; border-radius: 13px; border: 0; background: rgba(20,24,30,.7); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
   .wx-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 10px 0 4px; text-align: center; }
   .wx-hours > div { display: grid; justify-items: center; gap: 1px; padding: 6px 0; border-radius: 12px; background: rgba(255,255,255,.55); }
   .wx-hours span { font-size: 11px; color: var(--stone); }
